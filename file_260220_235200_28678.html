@@ -1,0 +1,3208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>极简桌面 - X 全效增强版</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* ==================== 基础样式 ==================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* 针对点击输入框可能导致的布局位移进行锁定 */
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed; /* 锁定视口，防止软键盘弹出拉起页面 */
+            background: #f0f0f2;
+        }
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.3s;
+        }
+
+        /* 模拟器外壳 */
+        .phone-container {
+            width: 375px;
+            height: 812px;
+            background: #fff;
+            border-radius: 40px;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* 强制全屏样式：修正全屏状态下的尺寸锁定 */
+        body.is-fullscreen .phone-container {
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: none !important;
+            max-height: none !important;
+            border-radius: 0 !important;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+
+        .status-bar {
+            position: absolute; top: 0; left: 0; right: 0;
+            height: 44px; display: flex; justify-content: space-between;
+            align-items: center; padding: 0 25px;
+            color: #333; font-size: 12px; z-index: 1500;
+        }
+
+        /* ==================== 桌面核心样式 ==================== */
+        .app-desktop {
+            width: 100%; height: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 80px 0 30px 0;
+            display: flex;
+            flex-direction: column;
+            transition: background 0.3s;
+        }
+        .time-header {
+            height: 110px; /* 固定高度确保对齐 */
+            margin-bottom: 30px; 
+            padding-left: 10px;  
+            cursor: pointer;
+            user-select: none;
+        }
+           
+        .big-time { font-size: 64px; font-weight: 700; color: #333; line-height: 1; }
+        .date-info { font-size: 18px; color: #666; margin-top: 10px; }
+
+        /* 分页容器样式 */
+        .desktop-pages-container {
+            flex: 1;
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+        }
+        .desktop-pages-container::-webkit-scrollbar { display: none; }
+        .desktop-page {
+            min-width: 100%;
+            height: 100%;
+            scroll-snap-align: start;
+            padding: 0 30px;
+        }
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px 20px;
+            justify-items: center;
+        }
+        
+        .app-icon { display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: pointer; }
+        
+        .icon-box {
+            width: 75px; height: 75px; border-radius: 22px;
+            background: #ffffff; box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 32px; color: #000; transition: transform 0.2s;
+        }
+        .icon-box:active { transform: scale(0.9); }
+        .app-icon span { font-size: 14px; color: #333; }
+
+        /* ==================== P2 专属自定义排版样式 ==================== */
+        .p2-custom-layout {
+            display: flex;
+            gap: 20px; 
+            width: 100%;
+            height: 220px; 
+            margin-top: 10px;
+        }
+        .p2-big-pic {
+            flex: 1.6;
+            background: #ffffff;
+            border-radius: 22px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            height: 100%;
+        }
+        .p2-big-pic img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .p2-big-pic .placeholder-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+        }
+        .p2-side-apps {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 0;
+        }
+        .p2-small-app {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .p2-small-app .icon-box {
+            width: 75px; height: 75px; 
+            font-size: 32px;
+            border-radius: 22px;
+            background: #ffffff;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            display: flex; align-items: center; justify-content: center;
+            color: #000;
+        }
+        .p2-small-app:active { transform: scale(0.9); }
+        .p2-small-app span { font-size: 14px; color: #333; }
+
+        /* --- 修改：P2 底部新排版 (左侧4图标+右侧透明横线) --- */
+        .p2-bottom-group {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 25px;
+            gap: 20px;
+            height: auto; /* 自适应高度 */
+        }
+        
+        /* 左侧 2x2 APP 网格 */
+        .p2-four-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 15px; /* 图标之间的间距 */
+            justify-items: center;
+        }
+        
+        /* 右侧透明记事区 */
+        .p2-notes-area {
+            flex: 1.2; /* 右侧稍微宽一点以便书写 */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; /* 使线条垂直分布均匀 */
+            padding: 5px 0;
+        }
+        
+        .        /* 右侧透明记事区 - 修改版 */
+        .p2-notes-area {
+            flex: 1.2;
+            display: flex;
+            flex-direction: column;
+            padding: 5px 0;
+            height: 100%; /* 确保高度撑满 */
+        }
+        
+        .note-line {
+            width: 100%;
+            height: 100%; /* 自动填满高度 */
+            background: transparent;
+            border: none;
+            outline: none;
+            font-size: 14px;
+            color: #333;
+            padding: 0 5px;
+            resize: none; /* 禁止手动拉伸 */
+            
+            /* 这里的魔法是画出横线 */
+            line-height: 30px; /* 每行文字的高度 */
+            background-image: linear-gradient(transparent 28px, #ffffff 29px); /* 画白线 */
+            background-size: 100% 30px; /* 格子大小 */
+        }
+
+        .note-line::placeholder {
+            color: rgba(0,0,0,0.3);
+            font-size: 12px;
+        }
+        /* --- 样式结束 --- */
+
+        /* 分页指示器 */
+        .pagination-dots {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 20px 0;
+        }
+        .dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.2);
+            transition: 0.3s;
+        }
+        .dot.active {
+            background: rgba(0,0,0,0.8);
+            transform: scale(1.2);
+        }
+        .app-bottom-bar {
+            position: absolute; bottom: 25px; left: 20px; right: 20px;
+            height: 95px; background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(20px); border-radius: 30px;
+            display: flex; justify-content: space-around; align-items: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05); padding: 0 10px;
+        }
+        .bottom-icon-box {
+            width: 60px; height: 60px; border-radius: 18px;
+            background: #fff; display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; font-size: 24px; color: #000;
+        }
+        /* 应用窗口 */
+        .app-window {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #fff; z-index: 2000; display: none;
+            flex-direction: column; animation: appOpen 0.3s ease-out;
+        }
+        @keyframes appOpen { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .nav-header { padding: 50px 20px 20px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #eee; }
+        .back-btn { font-size: 20px; cursor: pointer; }
+
+        /* ==================== 醋意值样式 ==================== */
+        .jealousy-text {
+            font-size: 10px;
+            color: #888; 
+            margin-top: 2px;
+        }
+
+        /* ==================== 角色详细资料页 ==================== */
+        .char-detail-page {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #ededed; z-index: 8000; display: none; flex-direction: column;
+            animation: appOpen 0.3s ease-out;
+        }
+        .char-detail-item {
+            background: #fff; padding: 15px 20px; display: flex; align-items: center;
+            justify-content: space-between; border-bottom: 1px solid #f0f0f0;
+        }
+        .char-detail-group { margin-top: 10px; border-top: 1px solid #ddd; }
+        .char-detail-avatar-box {
+            background: #fff; padding: 20px; display: flex; align-items: center; gap: 15px;
+            margin-bottom: 10px; cursor: pointer;
+        }
+        .char-detail-avatar { width: 60px; height: 60px; border-radius: 8px; background-size: cover; background-position: center; }
+        .char-detail-name { font-size: 18px; font-weight: bold; color: #000; }
+        .char-detail-action-btn {
+            background: #fff; padding: 15px; text-align: center; color: #ff3b30; 
+            font-size: 16px; font-weight: 500; margin-top: 20px; cursor: pointer;
+        }
+
+        /* ==================== 搜索记录页 ==================== */
+        .search-history-page {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #ededed; z-index: 9000; display: none; flex-direction: column;
+        }
+        .search-bar-container {
+            padding: 50px 15px 10px; background: #ededed; display: flex; align-items: center; gap: 10px;
+        }
+        .search-input-box {
+            flex: 1; background: #fff; border-radius: 6px; display: flex; align-items: center; padding: 5px 10px;
+        }
+        .search-input-box input {
+            border: none; outline: none; width: 100%; font-size: 14px; margin-left: 5px;
+        }
+
+        /* ==================== 世界书编辑器弹层 ==================== */
+        .wb-editor-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #f2f2f7; z-index: 6000; display: none; flex-direction: column;
+        }
+        .wb-editor-header {
+            padding: 50px 20px 15px; display: flex; justify-content: space-between; align-items: center;
+            background: #fff; border-bottom: 1px solid #ddd;
+        }
+        .wb-editor-title { font-weight: bold; font-size: 17px; }
+        .wb-save-btn { color: #34c759; font-weight: bold; cursor: pointer; }
+        .wb-cancel-btn { color: #333; cursor: pointer; }
+        
+        .wb-editor-body { flex: 1; padding: 20px; overflow-y: auto; }
+        .wb-input-section {
+            background: #fff; border-radius: 12px; padding: 0 15px; margin-bottom: 25px;
+        }
+        .wb-input-row {
+            display: flex; align-items: center; padding: 15px 0; border-bottom: 1px solid #eee;
+        }
+        .wb-input-row:last-child { border-bottom: none; }
+        .wb-label { width: 80px; font-size: 16px; color: #000; font-weight: 500; }
+        .wb-input-field {
+            flex: 1; border: none; outline: none; font-size: 16px; color: #333; background: transparent;
+        }
+        .wb-area-label { font-size: 14px; color: #8e8e93; margin-bottom: 8px; display: block; }
+        .wb-textarea {
+            width: 100%; height: 200px; border: none; border-radius: 12px; padding: 15px;
+            font-size: 16px; color: #333; outline: none; resize: none; background: #fff;
+        }
+        /* ==================== Chat 专属样式 ==================== */
+        .chat-tab-content { flex: 1; overflow-y: auto; background: #ededed; }
+        .chat-item { 
+            display: flex; padding: 12px 16px; background: #fff; border-bottom: 1px solid #f0f0f0; align-items: center; gap: 12px; cursor: pointer;
+        }
+        .chat-item.is-top { background: #f7f7f7; }
+        .chat-avatar { width: 48px; height: 48px; border-radius: 8px; background-size: cover; background-position: center; flex-shrink: 0; }
+        .chat-info { flex: 1; overflow: hidden; }
+        .chat-name { font-size: 16px; font-weight: 500; color: #000; margin-bottom: 4px; }
+        .chat-msg { font-size: 13px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .chat-bottom-nav {
+            height: 60px; border-top: 1px solid #ddd; background: #f7f7f7; display: flex; justify-content: space-around; align-items: center;
+        }
+        .chat-nav-item { display: flex; flex-direction: column; align-items: center; font-size: 10px; color: #2c2c2c; cursor: pointer; }
+        .chat-nav-item i { font-size: 20px; margin-bottom: 3px; }
+        .chat-nav-item.active { color: #888888; }
+
+        /* 朋友圈样式 */
+        .moments-header { height: 260px; background: #333; position: relative; margin-bottom: 40px; }
+        .moments-cover { width: 100%; height: 100%; object-fit: cover; }
+        .moments-user { position: absolute; right: 15px; bottom: -20px; display: flex; align-items: center; gap: 15px; }
+        .moments-user-name { color: #fff; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.5); font-size: 18px; margin-bottom: 10px;}
+        .moments-user-avatar { width: 70px; height: 70px; border-radius: 8px; border: 2px solid #fff; background-size: cover; }
+        .moment-card { padding: 20px 15px; border-bottom: 1px solid #eee; background: #fff; display: flex; gap: 12px; }
+        .moment-content { flex: 1; }
+        .moment-name { color: #576b95; font-weight: bold; margin-bottom: 6px; }
+        .moment-text { font-size: 15px; line-height: 1.5; color: #111; margin-bottom: 10px; }
+        .moment-imgs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 10px; }
+        .moment-img { width: 100%; aspect-ratio: 1; background: #f0f0f0; border-radius: 4px; object-fit: cover; }
+        .moment-time { font-size: 12px; color: #b1b1b1; }
+
+        /* 个人中心样式 */
+        .me-header { padding: 40px 25px; background: #fff; display: flex; align-items: center; gap: 20px; border-bottom: 8px solid #ededed; }
+        .me-avatar { width: 64px; height: 64px; border-radius: 8px; background-size: cover; cursor: pointer; }
+        .me-info h2 { font-size: 20px; margin-bottom: 5px; cursor: pointer; }
+        .me-info p { color: #888; font-size: 14px; cursor: pointer; }
+        .me-menu { background: #fff; }
+        .me-item { padding: 15px 20px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+
+        /* ==================== X (Twitter) 专属样式 ==================== */
+        .x-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 15px; background: #fff; z-index: 10; width: 100%;
+        }
+        .x-avatar-mini { 
+            width: 32px; height: 32px; border-radius: 50%; 
+            background: #ccc; cursor: pointer; background-size: cover;
+            background-color: #eee; flex-shrink: 0;
+        }
+        .x-logo { font-size: 20px; color: #000; }
+        .x-tabs {
+            display: flex; border-bottom: 1px solid #eff3f4; background: #fff; width: 100%;
+        }
+        .x-tab-item {
+            flex: 1; text-align: center; padding: 15px 0; font-size: 15px; color: #536471; cursor: pointer; position: relative;
+        }
+        .x-tab-item.active { color: #0f1419; font-weight: bold; }
+        .x-tab-item.active::after {
+            content: ""; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 56px; height: 4px; background: #1d9bf0; border-radius: 2px;
+        }
+        
+        .pull-to-refresh {
+            height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center;
+            background: #fff; color: #1d9bf0; font-size: 14px; transition: height 0.2s; width: 100%;
+        }
+        /* 正在关注页面右上角加号样式 */
+.x-follow-plus {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+.x-follow-plus:hover {
+    background: rgba(29, 155, 240, 0.1); /* 仿X原版浅蓝hover效果 */
+}
+ 
+       .x-feed { 
+            flex: 1; 
+            overflow-y: auto; 
+            background: #fff; 
+            display: flex;
+            flex-direction: column;
+            width: 100% !important;
+            overflow-x: hidden;
+        }
+        .x-tweet {
+            padding: 15px; 
+            border-bottom: 1px solid #eff3f4;
+            display: flex; 
+            flex-direction: row !important;
+            gap: 12px; 
+            cursor: pointer;
+            width: 100% !important;
+            box-sizing: border-box;
+            background: #fff;
+            flex-shrink: 0;
+        }
+        .tweet-avatar { 
+            width: 48px !important; height: 48px !important; border-radius: 50%; 
+            background-color: #f0f0f0;
+            flex-shrink: 0;
+            background-size: cover; background-repeat: no-repeat; background-position: center; 
+        }
+        .tweet-content { 
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .tweet-user { 
+            font-weight: bold; font-size: 15px; color: #0f1419; 
+            display: flex; align-items: center; gap: 4px; width: 100%;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .tweet-handle { color: #536471; font-weight: normal; font-size: 14px; margin-left: 2px; }
+        .tweet-text { 
+            font-size: 15px; line-height: 20px; margin-top: 4px; color: #0f1419; 
+            white-space: pre-wrap; word-wrap: break-word; width: 100%;
+        }
+        
+        .image-container {
+            width: 100%; border-radius: 12px; margin-top: 10px;
+            overflow: hidden; background: #f3f4f6;
+            position: relative; border: 1px solid #eff3f4;
+        }
+        .tweet-image {
+            width: 100%; display: block;
+            max-height: 300px; object-fit: cover;
+        }
+        .tweet-actions {
+            display: flex; justify-content: space-between; 
+            margin-top: 12px; width: 100%; max-width: 280px; color: #536471; font-size: 13px;
+        }
+        
+        .action-item { cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 4px; }
+        .action-item.liked { color: #f91880; }
+        .action-item.liked i { font-weight: 900; }
+        .action-item.retweeted { color: #00ba7c; }
+        /* 热搜样式 */
+        .search-trend-item {
+            padding: 15px; border-bottom: 1px solid #eff3f4;
+            cursor: pointer; width: 100%;
+        }
+        .trend-meta { font-size: 13px; color: #536471; margin-bottom: 4px; }
+        .trend-name { font-size: 16px; font-weight: 800; color: #0f1419; margin-bottom: 4px; }
+        .trend-stats { font-size: 13px; color: #536471; }
+        .x-bottom-nav {
+            display: flex; justify-content: space-around; align-items: center;
+            height: 50px; border-top: 1px solid #eff3f4; background: #fff;
+            position: absolute; bottom: 0; left: 0; width: 100%; z-index: 10;
+        }
+        .x-nav-icon { font-size: 20px; color: #0f1419; cursor: pointer; }
+        .x-nav-icon.active { color: #1d9bf0; }
+        
+        .x-fab {
+            position: absolute; bottom: 70px; right: 20px;
+            width: 56px; height: 56px; border-radius: 50%;
+            background: #1d9bf0; color: #fff; display: flex;
+            align-items: center; justify-content: center; font-size: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2); cursor: pointer; z-index: 11;
+        }
+        /* ==================== 聊天对话框头像增强 ==================== */
+        .chat-room-container { flex: 1; display: flex; flex-direction: column; background: #ededed; height: 100%; overflow: hidden; }
+        .message-list { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
+        
+        .msg-wrapper { display: flex; align-items: flex-start; gap: 8px; width: 100%; position: relative;}
+        .msg-wrapper.msg-right { flex-direction: row-reverse; }
+        
+        .msg-bubble-avatar { 
+            width: 40px; height: 40px; border-radius: 4px; background-size: cover; 
+            background-position: center; flex-shrink: 0; background-color: #ddd;
+        }
+
+        .msg-bubble { 
+            max-width: 70%; padding: 10px 14px; border-radius: 6px; font-size: 15px; line-height: 1.4; 
+            position: relative; word-wrap: break-word; user-select: none;
+            display: flex; flex-direction: column;
+        }
+        
+        /* 引用回复样式 */
+        .msg-quote {
+            background: rgba(0,0,0,0.05);
+            border-left: 3px solid #ccc;
+            padding: 4px 8px;
+            margin-bottom: 6px;
+            font-size: 12px;
+            color: #666;
+            border-radius: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+        
+        .msg-left .msg-bubble { background: #fff; color: #000; }
+        .msg-left .msg-bubble::before {
+            content: ""; position: absolute; left: -6px; top: 12px;
+            border-top: 6px solid transparent; border-bottom: 6px solid transparent;
+            border-right: 6px solid #fff;
+        }
+        .msg-right .msg-bubble { background: #ffffff; color: #000; }
+        .msg-right .msg-bubble::after {
+            content: ""; position: absolute; right: -6px; top: 12px;
+            border-top: 6px solid transparent; border-bottom: 6px solid transparent;
+            border-left: 6px solid #ffffff;
+        }
+
+        /* 聊天气泡长按菜单 */
+        .msg-context-menu {
+            position: absolute; background: rgba(0,0,0,0.8); border-radius: 8px;
+            display: none; padding: 5px; z-index: 7000; flex-direction: row; gap: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .menu-btn { color: #fff; font-size: 12px; padding: 5px 10px; cursor: pointer; }
+
+        /* X 发帖弹窗 */
+        .x-compose-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #fff; z-index: 4000; display: none; flex-direction: column;
+            animation: appOpen 0.3s ease-out;
+        }
+        .compose-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 50px 20px 15px;
+        }
+        .compose-post-btn {
+            background: #1d9bf0; color: #fff; padding: 6px 16px; border-radius: 20px;
+            font-weight: bold; font-size: 14px; border: none; cursor: pointer;
+        }
+        .compose-content {
+            flex: 1; padding: 15px; display: flex; gap: 12px;
+        }
+        .compose-textarea {
+            flex: 1; border: none; outline: none; font-size: 18px; resize: none;
+            color: #0f1419; padding-top: 5px;
+        }
+        .compose-footer {
+            padding: 15px; border-top: 1px solid #eee; display: flex; gap: 20px;
+            color: #1d9bf0; font-size: 18px;
+        }
+        /* X 侧边栏菜单 */
+        .x-sidebar-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4); z-index: 3000; display: none;
+        }
+        .x-sidebar {
+            position: absolute; top: 0; left: -280px; width: 280px; height: 100%;
+            background: #fff; z-index: 3001; transition: left 0.3s ease;
+            padding: 20px; display: flex; flex-direction: column;
+        }
+        .x-sidebar.active { left: 0; }
+        .sidebar-header { margin-bottom: 25px; cursor: pointer; }
+        .sidebar-avatar { width: 40px; height: 40px; border-radius: 50%; background: #fff; background-size: contain; background-repeat: no-repeat; margin-bottom: 10px; }
+        .sidebar-name { font-weight: bold; font-size: 18px; display: flex; align-items: center; gap: 5px; }
+        .sidebar-handle { color: #536471; font-size: 14px; margin-bottom: 15px; }
+        .sidebar-stats { display: flex; gap: 15px; font-size: 14px; color: #536471; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+        .sidebar-stats b { color: #0f1419; }
+        .sidebar-menu-item { display: flex; align-items: center; gap: 20px; padding: 15px 0; font-size: 18px; font-weight: bold; color: #0f1419; cursor: pointer; }
+        .sidebar-menu-item i { width: 25px; font-size: 20px; }
+       /* ==================== X 个人主页样式（仿推特原版） ==================== */
+.x-profile-page {
+    flex: 1; display: flex; flex-direction: column; overflow-y: auto; background: #fff; z-index: 2500;
+}
+/* 顶部Banner图区域 */
+.profile-banner {
+    height: 180px; /* 推特标准Banner高度 */
+    background: #cfd9de; position: relative; background-size: cover; background-position: center;
+    width: 100%;
+}
+/* 返回按钮（悬浮在Banner上） */
+.profile-nav-back {
+    position: absolute; top: 15px; left: 15px; z-index: 10;
+    width: 38px; height: 38px; background: rgba(0,0,0,0.5); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer;
+}
+/* 个人头像（悬浮在Banner底部） */
+.profile-avatar-big {
+    width: 100px; height: 100px; /* 推特标准头像大小 */
+    border-radius: 50%; border: 4px solid #fff; /* 白色边框增强层次感 */
+    background-size: cover; background-repeat: no-repeat;
+    position: absolute; bottom: -50px; left: 15px; /* 悬浮在Banner下方 */
+    background-color: #fff; cursor: pointer; background-position: center;
+}
+/* 编辑资料按钮 */
+.profile-edit-btn {
+    align-self: flex-end; margin: 15px; padding: 6px 16px;
+    border: 1px solid #1d9bf0; /* 推特蓝边框 */
+    border-radius: 20px; font-weight: bold; font-size: 14px;
+    cursor: pointer; color: #1d9bf0; background: transparent;
+}
+.profile-edit-btn:hover {
+    background: rgba(29, 155, 240, 0.1); /* hover浅蓝色背景 */
+}
+/* 资料信息区（头像下方） */
+.profile-info {
+    padding: 60px 15px 15px; /* 顶部留足头像悬浮空间 */
+}
+.profile-name-row {
+    font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 5px;
+    margin-bottom: 4px;
+}
+/* 认证徽章 */
+.profile-verified {
+    color: #1d9bf0; font-size: 16px; margin-left: 5px;
+}
+.profile-handle-row {
+    color: #536471; font-size: 15px; margin-bottom: 12px;
+}
+/* 个人简介 */
+.profile-bio {
+    font-size: 15px; color: #0f1419; line-height: 1.4; margin-bottom: 12px;
+}
+/* 主页数据统计栏（推文/关注/粉丝） */
+.profile-stats {
+    display: flex; gap: 15px; margin-bottom: 15px;
+}
+.profile-stat-item {
+    display: flex; flex-direction: column;
+}
+.profile-stat-value {
+    font-weight: 800; color: #0f1419; font-size: 15px;
+}
+.profile-stat-label {
+    color: #536471; font-size: 12px;
+}
+/* 主页标签栏（推文/回复/媒体/喜欢） */
+.profile-tabs {
+    display: flex; border-bottom: 1px solid #eff3f4;
+}
+.profile-tab-item {
+    flex: 1; text-align: center; padding: 12px 0;
+    font-size: 15px; color: #536471; cursor: pointer;
+    font-weight: 500; position: relative;
+}
+.profile-tab-item.active {
+    color: #1d9bf0; font-weight: 700;
+}
+.profile-tab-item.active::after {
+    content: ""; position: absolute; bottom: 0; left: 0;
+    width: 100%; height: 3px; background: #1d9bf0;
+}
+/* 推文列表容器 */
+.profile-tweet-feed {
+    width: 100%;
+}
+        /* ==================== 设置页面专属样式 ==================== */
+        .settings-content { padding: 20px; overflow-y: auto; flex: 1; background: #fcfcfd; }
+        .menu-item {
+            background: #f9f9f9; padding: 18px; border-radius: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 12px; cursor: pointer; font-weight: 500;
+        }
+        .menu-item:active { background: #f0f0f0; }
+        .setting-card { background: transparent; padding: 0; }
+        .setting-item { margin-bottom: 25px; }
+        .setting-label { font-size: 14px; font-weight: 700; color: #999; display: block; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .api-input-group { display: flex; gap: 10px; align-items: center; }
+        .api-input {
+            flex: 1; padding: 16px; border: none;
+            background: #f1f1f4;
+            border-radius: 18px; font-size: 15px; outline: none;
+            color: #333;
+        }
+        .api-input::placeholder { color: #bbb; }
+        
+        .icon-btn-small {
+            width: 48px; height: 48px; background: #f1f1f4; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center; font-size: 18px; color: #333; cursor: pointer; border: none;
+        }
+        /* 优化滑块 */
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 6px; cursor: pointer; background: #e0e0e0; border-radius: 3px; }
+        input[type=range]::-webkit-slider-thumb { height: 24px; width: 24px; border-radius: 50%; background: #000; cursor: pointer; -webkit-appearance: none; margin-top: -9px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .slider-labels { display: flex; justify-content: space-between; margin-top: 10px; color: #bbb; font-size: 13px; }
+        .btn-group { display: flex; gap: 12px; margin-top: 30px; }
+        .primary-btn { flex: 1; padding: 18px; background: #000; color: #fff; border: none; border-radius: 18px; font-weight: bold; font-size: 16px; cursor: pointer; }
+        .secondary-btn { flex: 1; padding: 18px; background: #fff; color: #000; border: 1px solid #eee; border-radius: 18px; font-weight: bold; font-size: 16px; cursor: pointer; }
+        .toast { position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: #fff; padding: 8px 20px; border-radius: 20px; font-size: 13px; z-index: 9999; opacity: 0; transition: 0.3s; pointer-events: none; }
+        .toast.active { opacity: 1; }
+        .home-indicator { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 120px; height: 5px; background: #ddd; border-radius: 10px; z-index: 3000; cursor: pointer; }
+        /* 模型选择弹窗样式 (仿P3) */
+        .model-selector-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4); z-index: 5000; display: none;
+            justify-content: center; align-items: center;
+        }
+        .model-selector-card {
+            width: 85%; background: #fff; border-radius: 20px; overflow: hidden;
+            display: flex; flex-direction: column; max-height: 60%;
+        }
+        .model-selector-title {
+            padding: 20px; font-size: 18px; font-weight: bold; text-align: center; border-bottom: 1px solid #eee;
+        }
+        .model-list { overflow-y: auto; flex: 1; }
+        .model-item {
+            padding: 15px 20px; border-bottom: 1px solid #f5f5f5; font-size: 16px;
+            color: #333; cursor: pointer; transition: background 0.2s;
+        }
+        .model-item:active { background: #f0f0f0; }
+        .model-selector-cancel {
+            padding: 15px; text-align: center; color: #666; font-size: 16px; border-top: 1px solid #eee; cursor: pointer;
+        }
+        /* ==================== 评论样式 (仿 X 风格) ==================== */
+        .        /* ==================== 评论样式 (仿 X 风格) ==================== */
+        .comment-section { 
+            border-top: 1px solid #eff3f4; 
+            padding-bottom: 60px; 
+            width: 100%; 
+        }
+        
+        .comment-item { 
+            display: flex; 
+            gap: 12px; 
+            padding: 12px 16px; 
+            border-bottom: 1px solid #eff3f4; 
+            width: 100%; 
+            align-items: flex-start;
+        }
+
+        .comment-avatar { 
+            width: 40px; height: 40px; 
+            border-radius: 50%; 
+            background-size: cover; 
+            background-position: center;
+            background-color: #f0f0f0; 
+            flex-shrink: 0; 
+        }
+        
+        .comment-body { 
+            flex: 1; 
+            min-width: 0; 
+            display: flex;
+            flex-direction: column;
+        }
+
+        .comment-header-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 15px;
+            margin-bottom: 2px;
+        }
+        
+        .comment-user-name { 
+            font-weight: 700; 
+            color: #0f1419; 
+        }
+        
+        .comment-user-handle, .comment-time-ago {
+            color: #536471;
+            font-weight: 400;
+        }
+
+        .comment-text { 
+            font-size: 15px; 
+            color: #0f1419;
+            line-height: 20px; 
+            word-wrap: break-word; 
+            margin-bottom: 12px;
+        }
+
+        .comment-actions-bar {
+            display: flex;
+            justify-content: space-between;
+            max-width: 300px; 
+            color: #536471;
+            font-size: 13px;
+        }
+        
+        .c-action-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+
+        /* Chat 顶部导航栏样式 */
+        .chat-top-bar {
+            height: 60px;
+            background: #ededed;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 15px 5px;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .chat-top-back {
+            font-size: 22px;
+            color: #000;
+            cursor: pointer;
+            width: 30px;
+        }
+        .chat-top-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #000;
+        }
+        .chat-top-plus {
+            width: 30px;
+            height: 30px;
+            background: #333;
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center; font-size: 18px;
+            cursor: pointer;
+        }
+        
+        /* 引用栏样式 */
+        .quote-preview-bar {
+            background: #f0f0f0;
+            padding: 8px 15px;
+            border-top: 1px solid #ddd;
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: #666;
+            flex-shrink: 0;
+        }
+        
+        .chat-input-area { 
+            background: #f7f7f7; padding: 10px 15px; display: flex; align-items: center; gap: 10px; 
+            border-top: 1px solid #ddd; padding-bottom: calc(10px + env(safe-area-inset-bottom));
+            flex-shrink: 0;
+        }
+        .chat-input { 
+            flex: 1; height: 38px; border: none; border-radius: 6px; padding: 0 10px; font-size: 16px; outline: none; 
+        }
+        .chat-send-btn { 
+            background: #07c160; color: #fff; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; 
+        }
+        /* 世界书选择样式 */
+        .worldbook-select {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            background: #f1f1f4;
+            border-radius: 18px;
+            font-size: 15px;
+            outline: none;
+            color: #333;
+            margin-bottom: 20px;
+        }
+    </style>
+<body id="body">
+<div class="toast" id="toast">提示信息</div>
+
+<div class="msg-context-menu" id="msgContextMenu">
+    <div class="menu-btn" id="menuBacktrack">回溯</div>
+    <div class="menu-btn" id="menuEdit">编辑</div>
+    <div class="menu-btn" id="menuQuote">引用</div>
+    <div class="menu-btn" id="menuDelete">删除</div>
+</div>
+
+<div class="char-detail-page" id="charDetailPage">
+    <div class="chat-top-bar">
+        <i class="fas fa-chevron-left chat-top-back" onclick="closeCharDetail()"></i>
+        <span class="chat-top-title">聊天信息</span>
+        <div style="width:30px;"></div>
+    </div>
+    <div style="flex:1; overflow-y:auto; padding-bottom:30px;">
+        <div class="char-detail-group">
+            <div class="char-detail-avatar-box" onclick="handleCharDetailEdit()">
+                <div class="char-detail-avatar" id="detailAvatar"></div>
+                <div class="char-detail-name" id="detailName">角色名称</div>
+                <i class="fas fa-chevron-right" style="margin-left:auto; color:#ccc;"></i>
+            </div>
+        </div>
+        <div class="char-detail-group">
+            <div class="char-detail-item" onclick="openSearchHistory()">
+                <span>查找聊天记录</span>
+                <i class="fas fa-chevron-right" style="color:#ccc;"></i>
+            </div>
+        </div>
+        <div class="char-detail-group">
+            <div class="char-detail-item">
+                <span>置顶聊天</span>
+                <input type="checkbox" id="detailStickyCheck" style="transform: scale(1.2);" onchange="toggleStickyFromDetail(this.checked)">
+            </div>
+            <div class="char-detail-item">
+                <span>消息免打扰</span>
+                <input type="checkbox" style="transform: scale(1.2);">
+            </div>
+        </div>
+        <div class="char-detail-group">
+            <div class="char-detail-item">
+                <span>当前醋意值</span>
+                <span id="detailJealousyDisplay" style="color:#888;">0%</span>
+            </div>
+        </div>
+        <div class="char-detail-action-btn" onclick="resetCharJealousyFromDetail()">重置醋意值</div>
+        <div class="char-detail-action-btn" style="margin-top:10px;" onclick="clearCurrentChatHistory()">清空聊天记录</div>
+    </div>
+</div>
+
+<div class="search-history-page" id="searchHistoryPage">
+    <div class="search-bar-container">
+        <i class="fas fa-chevron-left" onclick="closeSearchHistory()" style="font-size: 18px;"></i>
+        <div class="search-input-box">
+            <i class="fas fa-search" style="color: #999; font-size: 14px;"></i>
+            <input type="text" id="chatSearchInput" placeholder="搜索内容" oninput="doChatSearch()">
+        </div>
+    </div>
+    <div id="searchResults" style="flex: 1; overflow-y: auto;"></div>
+</div>
+
+<div class="model-selector-overlay" id="modelSelector">
+    <div class="model-selector-card">
+        <div class="model-selector-title">选择模型</div>
+        <div class="model-list" id="modelList"></div>
+        <div class="model-selector-cancel" onclick="hideModelSelector()">取消</div>
+    </div>
+</div>
+
+<div class="wb-editor-overlay" id="wbEditorOverlay">
+    <div class="wb-editor-header">
+        <span class="wb-cancel-btn" onclick="closeWbEditor()">取消</span>
+        <span class="wb-editor-title" id="wbEditorTitle">添加世界书</span>
+        <span class="wb-save-btn" onclick="saveWbEntry()">保存</span>
+    </div>
+    <div class="wb-editor-body">
+        <div class="wb-input-section">
+            <div class="wb-input-row">
+                <span class="wb-label">关键词</span>
+                <input type="text" id="wbKeyInput" class="wb-input-field" placeholder="触发词">
+            </div>
+            <div class="wb-input-row" style="justify-content: space-between;">
+                <span class="wb-label">全局生效</span>
+                <input type="checkbox" id="wbGlobalCheck" style="transform: scale(1.3);">
+            </div>
+        </div>
+        <span class="wb-area-label">设定内容</span>
+        <textarea id="wbContentInput" class="wb-textarea" placeholder="输入相关背景内容..."></textarea>
+    </div>
+</div>
+
+<div class="phone-container" id="mainContainer">
+    <div class="status-bar">
+        <div class="status-left"><i class="fas fa-signal"></i></div>
+        <div class="status-right">
+            <i class="fas fa-wifi" style="margin-right:5px;"></i>
+            <i class="fas fa-battery-full"></i>
+        </div>
+    </div>
+
+    <div class="app-desktop" id="desktop">
+        <div class="desktop-pages-container" id="desktopPages">
+            
+            <div class="desktop-page">
+                <div class="time-header" onclick="forceFullScreen()">
+                    <div class="big-time" id="bigTime">00:00</div>
+                    <div class="date-info" id="dateInfo">正在加载日期...</div>
+                </div>
+                <div class="app-grid">
+                    <div class="app-icon" onclick="openApp('论坛')"><div class="icon-box"><i class="fas fa-comment-dots"></i></div><span>论坛</span></div>
+                    <div class="app-icon" onclick="openApp('世界书')"><div class="icon-box"><i class="fas fa-book-open"></i></div><span>世界书</span></div>
+                    <div class="app-icon" onclick="openApp('Chat')"><div class="icon-box" style="font-family:Arial; font-weight:bold;"><i class="fab fa-weixin" style="color:#000000;"></i></div><span>Chat</span></div>
+                    <div class="app-icon" onclick="openApp('X')"><div class="icon-box" style="font-family:Arial; font-weight:bold;">X</div><span>X</span></div>
+                </div>
+            </div>
+            
+            <div class="desktop-page">
+                <div class="p2-custom-layout">
+                    <div class="p2-big-pic" onclick="document.getElementById('p2ImageInput').click()">
+                        <div id="p2ImagePlaceholder" class="placeholder-text">点击选择相册图片</div>
+                        <img id="p2CustomImage" src="" style="display:none;">
+                    </div>
+                    <input type="file" id="p2ImageInput" accept="image/*" style="display:none" onchange="handleP2ImageUpload(this)">
+                    
+                    <div class="p2-side-apps">
+                        <div class="p2-small-app" onclick="openApp('音乐')">
+                            <div class="icon-box"><i class="fas fa-music"></i></div>
+                            <span>音乐</span>
+                        </div>
+                        <div class="p2-small-app" onclick="openApp('记账本')">
+                            <div class="icon-box"><i class="fas fa-wallet"></i></div>
+                            <span>记账本</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p2-bottom-group">
+                    <div class="p2-four-grid">
+                        <div class="p2-small-app" onclick="openApp('淘宝')">
+                            <div class="icon-box"><i class="fas fa-shopping-cart"></i></div>
+                            <span>淘宝</span>
+                        </div>
+                        <div class="p2-small-app" onclick="openApp('美团')">
+                            <div class="icon-box"><i class="fas fa-utensils"></i></div>
+                            <span>美团</span>
+                        </div>
+                        <div class="p2-small-app" onclick="openApp('游戏')">
+                            <div class="icon-box"><i class="fas fa-gamepad"></i></div>
+                            <span>游戏</span>
+                        </div>
+                        <div class="p2-small-app" onclick="openApp('小说')">
+                            <div class="icon-box"><i class="fas fa-book"></i></div>
+                            <span>小说</span>
+                        </div>
+                    </div>
+
+                    <div class="p2-notes-area">
+                        <textarea class="note-line" id="noteLineArea" placeholder="记事..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="pagination-dots">
+            <div class="dot active" onclick="scrollToPage(0)"></div>
+            <div class="dot" onclick="scrollToPage(1)"></div>
+        </div>
+    </div> 
+
+    <div class="app-bottom-bar">
+        <div class="app-icon" onclick="showToast('正在呼叫...')"><div class="bottom-icon-box"><i class="fas fa-phone"></i></div></div>
+        <div class="app-icon" onclick="showToast('相机已就绪')"><div class="bottom-icon-box"><i class="fas fa-camera"></i></div></div>
+        <div class="app-icon" onclick="openApp('日记')"><div class="bottom-icon-box"><i class="fas fa-book"></i></div></div>
+        <div class="app-icon" onclick="openApp('设置')"><div class="bottom-icon-box"><i class="fas fa-cog"></i></div></div>
+    </div>
+
+    <div class="x-sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar(false)"></div>
+    <div class="x-sidebar" id="sidebar">
+        <div class="sidebar-header" onclick="renderXProfilePage()">
+            <div class="sidebar-avatar" id="xSideAvatar"></div>
+            <div class="sidebar-name" id="xSideName">User <i class="fas fa-lock" style="font-size: 14px; color: #536471;"></i></div>
+            <div class="sidebar-handle" id="xSideHandle">@user_id</div>
+            <div class="sidebar-stats">
+                <span><b>9</b> 正在关注</span>
+                <span><b id="followerCountDisplay">0</b> 关注者</span>
+            </div>
+        </div>
+        <div class="sidebar-menu-item" onclick="renderXProfilePage()"><i class="far fa-user"></i> 个人资料</div>
+        <div class="sidebar-menu-item"><i class="fab fa-twitter"></i> Premium</div>
+        <div class="sidebar-menu-item"><i class="far fa-comments"></i> 社群</div>
+        <div class="sidebar-menu-item" onclick="renderBookmarkSettings()"><i class="far fa-bookmark"></i> 书签</div>
+        <div class="sidebar-menu-item"><i class="far fa-list-alt"></i> 列表</div>
+        <div class="sidebar-menu-item" onclick="closeApp()" style="margin-top: auto; border-top: 1px solid #eee; color: #ff3b30;"><i class="fas fa-sign-out-alt"></i> 退出 X</div>
+    </div>
+
+    <div class="x-compose-overlay" id="composeOverlay">
+        <div class="compose-header">
+            <span style="color: #0f1419; cursor: pointer;" onclick="toggleCompose(false)">取消</span>
+            <button class="compose-post-btn" id="postBtn" onclick="postTweet()">发布</button>
+        </div>
+        <div class="compose-content">
+            <div class="tweet-avatar" id="composeUserAvatar" style="width:35px; height:35px;"></div>
+            <textarea class="compose-textarea" id="tweetInput" placeholder="有什么新鲜事？"></textarea>
+        </div>
+        <div class="compose-footer">
+            <i class="far fa-image"></i>
+            <i class="fas fa-film"></i>
+            <i class="fas fa-chart-bar"></i>
+            <i class="far fa-smile"></i>
+        </div>
+    </div>
+
+    <div class="app-window" id="appWin">
+        <div class="nav-header" id="appHeader">
+            <i class="fas fa-chevron-left back-btn" id="winBackBtn" onclick="closeApp()"></i>
+            <span id="winTitle" style="font-weight: bold; font-size: 18px;">应用</span>
+        </div>
+        <div id="winContent" style="flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden;"></div>
+    </div>
+
+    <div class="home-indicator" onclick="closeApp()"></div>
+</div>
+<script>
+    // ================= 全局变量定义 =================
+    let desktopPages = document.getElementById('desktopPages');
+    let dots = document.querySelectorAll('.dot');
+    let editingWbIndex = -1; 
+    let longPressTimer = null; 
+    let currentQuoteText = ""; 
+    let currentEditingCharId = null;
+    let currentChatCharName = ""; 
+
+    // --- P2 图片处理 (保持不变) ---
+    function handleP2ImageUpload(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('p2CustomImage');
+                const ph = document.getElementById('p2ImagePlaceholder');
+                img.src = e.target.result;
+                img.style.display = 'block';
+                ph.style.display = 'none';
+                localStorage.setItem('p2_custom_pic', e.target.result);
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    // --- 新增：保存和加载 P2 右下角的记事文字 (修改版) ---
+    function saveNoteArea() {
+        const val = document.getElementById('noteLineArea').value;
+        localStorage.setItem('p2_note_content', val);
+    }
+
+    function loadNoteLines() {
+        const el = document.getElementById('noteLineArea');
+        if(el) {
+            // 读取缓存
+            el.value = localStorage.getItem('p2_note_content') || "";
+            // 监听输入，只要打字就自动保存
+            el.oninput = saveNoteArea;
+        }
+    }
+
+    // ================= 搜索聊天记录逻辑 =================
+    function openSearchHistory() {
+        document.getElementById('searchHistoryPage').style.display = 'flex';
+        document.getElementById('chatSearchInput').value = '';
+        document.getElementById('searchResults').innerHTML = '';
+        document.getElementById('chatSearchInput').focus();
+    }
+
+    function closeSearchHistory() {
+        document.getElementById('searchHistoryPage').style.display = 'none';
+    }
+
+    function doChatSearch() {
+        const keyword = document.getElementById('chatSearchInput').value.trim().toLowerCase();
+        const resultsContainer = document.getElementById('searchResults');
+        resultsContainer.innerHTML = '';
+
+        if (!keyword || !currentChatCharName) return;
+
+        const history = chatHistories[currentChatCharName] || [];
+        const filtered = history.filter(msg => msg.text.toLowerCase().includes(keyword));
+
+        if (filtered.length === 0) {
+            resultsContainer.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">无搜索结果</div>';
+            return;
+        }
+
+        filtered.forEach(msg => {
+            const div = document.createElement('div');
+            div.className = 'chat-item';
+            div.style.padding = '15px';
+            const roleName = msg.role === 'user' ? '我' : currentChatCharName;
+            div.innerHTML = `
+                <div style="font-size:12px; color:#576b95; margin-bottom:4px;">${roleName}</div>
+                <div style="font-size:14px; color:#333;">${msg.text.replace(new RegExp(keyword, 'gi'), match => `<span style="color:#ff3b30; font-weight:bold;">${match}</span>`)}</div>
+            `;
+            resultsContainer.appendChild(div);
+        });
+    }
+
+    // ================= 分页逻辑 =================
+    if(desktopPages) {
+        desktopPages.addEventListener('scroll', function() {
+            let pageIndex = Math.round(desktopPages.scrollLeft / desktopPages.clientWidth);
+            dots.forEach(function(dot, i) {
+                dot.classList.toggle('active', i === pageIndex);
+            });
+        });
+    }
+    function scrollToPage(index) {
+        if(desktopPages) {
+            desktopPages.scrollTo({
+                left: index * desktopPages.clientWidth,
+                behavior: 'smooth'
+            });
+        }
+    }
+
+    // ================= 核心配置与 API 逻辑 =================
+    const config = {
+        get: function(key, def) { return localStorage.getItem(key) || def; },
+        set: function(key, val) { localStorage.setItem(key, val); }
+    };
+
+    async function fetchAIConsent(promptText, systemPrompt = "你是一个有用的助手。") {
+        const apiKey = config.get('apiKey', '');
+        const endpoint = config.get('apiEndpoint', '');
+        const model = config.get('apiModel', 'gpt-3.5-turbo');
+        const temp = parseFloat(config.get('apiTemp', '0.7'));
+        if (!apiKey || !endpoint) {
+            showToast("请先在设置中配置 API Key 和 Endpoint");
+            return null;
+        }
+        try {
+            let url = endpoint.trim().replace(/\/$/, "");
+            if (!url.includes('/chat/completions')) {
+                if (!url.endsWith('/v1')) {
+                    url += '/v1/chat/completions';
+                } else {
+                    url += '/chat/completions';
+                }
+            }
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${apiKey}`, 
+                    'Content-Type': 'application/json' 
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: promptText }
+                    ],
+                    temperature: temp
+                })
+            });
+            
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                showToast("API 错误: " + (errData.error?.message || response.status));
+                return null;
+            }
+            const data = await response.json();
+            return data.choices[0].message.content;
+        } catch (error) {
+            console.error(error);
+            showToast("API连接失败");
+            return null;
+        }
+    }
+
+    // ================= 醋意值智能判定逻辑 =================
+    async function analyzeJealousy(charName, userMsg, aiReply) {
+        const char = contacts.find(c => c.name === charName);
+        if (!char) return;
+        
+        const judgePrompt = `分析以下对话中角色 [${charName}] 的心理状态变化。
+当前醋意值：${char.jealousy || 0}%
+用户说：${userMsg}
+角色回：${aiReply}
+请仅输出一个数字（0-100），代表对话后最新的醋意值百分比。醋意通常在用户提到他人、态度冷淡或角色表达占有欲时上升，在用户安抚、示爱时下降。只输出数字，不要输出任何文字。`;
+
+        const result = await fetchAIConsent(judgePrompt, "你是一个心理分析专家，擅长通过对话分析角色的占有欲和醋意波动。");
+        if (result) {
+            const val = parseInt(result.replace(/[^0-9]/g, ""));
+            if (!isNaN(val)) {
+                updateJealousyData(charName, Math.min(100, Math.max(0, val)));
+            }
+        }
+    }
+
+    function updateJealousyData(charName, value) {
+        const charIndex = contacts.findIndex(c => c.name === charName);
+        if (charIndex > -1) {
+            contacts[charIndex].jealousy = value;
+            localStorage.setItem('chat_contacts', JSON.stringify(contacts));
+            const detailDisplay = document.getElementById('detailJealousyDisplay');
+            if(detailDisplay && currentChatCharName === charName) {
+                detailDisplay.textContent = `${value}%`;
+            }
+        }
+    }
+
+    function resetCharJealousyFromDetail() {
+        if (currentEditingCharId) {
+            const char = contacts.find(c => c.id === currentEditingCharId);
+            if (char) {
+                updateJealousyData(char.name, 0);
+                showToast(`${char.name} 的醋意已重置`);
+            }
+        }
+    }
+
+    // ================= API 测试与模型获取 =================
+    async function refreshModelList() {
+        const apiKey = document.getElementById('apiKey')?.value || '';
+        const endpoint = document.getElementById('apiEndpoint')?.value || '';
+        if (!apiKey || !endpoint) {
+            showToast("请先填写 API Key 和 Endpoint");
+            return;
+        }
+        showToast("正在获取模型列表...");
+        try {
+            let url = endpoint.trim().replace(/\/$/, "");
+            if (!url.includes('/models')) {
+                url = url.replace('/chat/completions', '') + '/models';
+            }
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${apiKey}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                showModelSelector(data.data || []);
+            } else {
+                showToast("获取失败");
+            }
+        } catch (e) {
+            showToast("网络连接失败");
+        }
+    }
+
+    async function testAPIConnection() {
+        showToast("正在通过 API 发起握手...");
+        const result = await fetchAIConsent("请回复'连接成功'四个字，不要带标点。");
+        if (result && result.includes("连接成功")) showToast("✅ API 连接测试通过！");
+        else if (result) showToast("⚠️ 响应异常：" + result.substring(0, 10));
+    }
+    // ================= 模型选择与管理 =================
+    function showModelSelector(models) {
+        const overlay = document.getElementById('modelSelector');
+        const list = document.getElementById('modelList');
+        if(!list) return;
+        list.innerHTML = '';
+        models.forEach(function(m) {
+            const modelId = m.id || m;
+            if (typeof modelId !== 'string') return;
+            const div = document.createElement('div');
+            div.className = 'model-item';
+            div.textContent = modelId;
+            div.onclick = function() {
+                let apiModelInput = document.getElementById('apiModel');
+                if(apiModelInput) apiModelInput.value = modelId;
+                hideModelSelector();
+                showToast("已选择: " + modelId);
+            };
+            list.appendChild(div);
+        });
+        if(overlay) overlay.style.display = 'flex';
+    }
+
+    function hideModelSelector() { 
+        let overlay = document.getElementById('modelSelector');
+        if(overlay) overlay.style.display = 'none'; 
+    }
+
+    // ================= 数据初始化 =================
+    let tweets = JSON.parse(localStorage.getItem('saved_tweets') || "[]");
+    let trends = [];
+    let currentXTab = 'feed';
+    let userFollowers = parseInt(config.get('xFollowers', '0'));
+    let currentChatTab = 'messages';
+    let contacts = JSON.parse(localStorage.getItem('chat_contacts') || "[]");
+    let chatHistories = JSON.parse(localStorage.getItem('chat_histories') || "{}");
+    let masks = JSON.parse(localStorage.getItem('chat_masks') || "[]");
+
+    // ================= 角色详情管理 =================
+    function openCharDetail(name) {
+        const char = contacts.find(c => c.name === name);
+        if (!char) return;
+        currentEditingCharId = char.id; 
+        currentChatCharName = name; 
+        
+        const page = document.getElementById('charDetailPage');
+        const avatarDiv = document.getElementById('detailAvatar');
+        const nameDiv = document.getElementById('detailName');
+        const jealousyDiv = document.getElementById('detailJealousyDisplay');
+        const stickyCheck = document.getElementById('detailStickyCheck');
+        
+        avatarDiv.style.backgroundImage = `url('${char.avatar}')`;
+        nameDiv.textContent = char.name;
+        jealousyDiv.textContent = `${char.jealousy || 0}%`;
+        stickyCheck.checked = !!char.isTop;
+        
+        page.style.display = 'flex';
+    }
+
+    function closeCharDetail() {
+        document.getElementById('charDetailPage').style.display = 'none';
+        if(currentChatTab === 'messages') {
+            renderChatApp('messages');
+        }
+    }
+
+    function handleCharDetailEdit() {
+        if (currentEditingCharId) {
+            closeCharDetail();
+            editContact(currentEditingCharId);
+        }
+    }
+
+    // ================= 聊天室核心逻辑 =================
+    function enterChatRoom(name) {
+        currentChatCharName = name; 
+        const content = document.getElementById('winContent');
+        const char = contacts.find(c => c.name === name) || { avatar: '', jealousy: 0 };
+        
+        content.innerHTML = `
+            <div class="chat-room-container">
+                <div class="chat-top-bar">
+                    <i class="fas fa-chevron-left chat-top-back" onclick="renderChatApp('messages')"></i>
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; overflow: hidden; margin: 0 10px;">
+                        <span class="chat-top-title" id="chatHeaderTitle" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${name}</span>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span id="chatTypingStatus" style="font-size: 10px; color: #888; display: none;">对方正在输入...</span>
+                        </div>
+                    </div>
+                    <div style="width: 30px; display: flex; justify-content: flex-end; cursor: pointer;" onclick="openCharDetail('${name}')">
+                        <i class="fas fa-ellipsis-h" style="font-size:18px;"></i>
+                    </div>
+                </div>
+                <div class="message-list" id="msgList"></div>
+                <div class="quote-preview-bar" id="quotePreview">
+                    <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">引用：<span id="quoteText"></span></span>
+                    <i class="fas fa-times" onclick="cancelQuote()" style="cursor:pointer; padding: 5px;"></i>
+                </div>
+                <div class="chat-input-area" id="chatInputArea">
+                    <input type="text" id="chatInputField" class="chat-input" placeholder="输入消息...">
+                    <i class="far fa-comment-dots" style="font-size:24px; color:#555; cursor:pointer;" onclick="triggerAISend('${name}')"></i>
+                    <button class="chat-send-btn" onclick="sendChatMessage('${name}')">发送</button>
+                </div>
+            </div>
+        `;
+        
+        renderMessages(name);
+        const inputField = document.getElementById('chatInputField');
+        if(inputField) {
+            inputField.onkeypress = function(e) { if (e.key === 'Enter') sendChatMessage(name); };
+        }
+    }
+    // ================= X 内容生成逻辑 =================
+    async function generateTweetsFromAPI(count = 5) {
+        showToast("正在通过 API 生成帖子...");
+        const userPrefs = config.get('xUserPrefs', '二次元、科技、生活吐槽');
+        const prompt = `请模拟生成${count}条类似Twitter(X)的社交动态。内容偏好：${userPrefs}，需包含年轻女孩喜欢的类型和梦女文学。
+        请严格按JSON数组格式返回：[{"user":"昵称","handle":"@ID","text":"帖子内容","lang":"zh","v":true}]。只返回纯文本JSON。`;
+        
+        const res = await fetchAIConsent(prompt);
+        if (!res) return getFallbackTweets();
+        try {
+            const jsonMatch = res.match(/\[\s*\{[\s\S]*\}\s*\]/);
+            const cleanJson = jsonMatch ? jsonMatch[0] : res.replace(/```json/g, "").replace(/```/g, "").trim();
+            const rawData = JSON.parse(cleanJson);
+            
+            const existingTexts = new Set(tweets.map(t => t.text));
+            
+            const newGenerated = rawData.map(function(t, i) {
+    // 仿推特风格的高真实度评论
+    let dummyComments = [];
+    const cCount = Math.floor(Math.random() * 6) + 1; 
+    
+    const twitterReplies = [
+        "太真实了破防了家人们😭", "笑死我了哈哈哈哈", "这图绝了", "求原图！", 
+        "这种事我也遇到过...", "这是什么神仙操作？", "我也想要！链接在哪？", 
+        "支持博主，已三连", "不明觉厉", "这就去买💸", "xswl", 
+        "确实", "👀", "好家伙", "如果是我的话肯定不行", 
+        "不懂就问，这个多少钱？", "Mark一下", "这就是我本人没错了"
+    ];
+    const randomUserPrefixes = ["Momo", "User", "Akira", "Sakura", "CatLover", "TechBro", "Daily", "Official"];
+    for(let k=0; k<cCount; k++) {
+        const rText = twitterReplies[Math.floor(Math.random() * twitterReplies.length)];
+        const rUser = randomUserPrefixes[Math.floor(Math.random() * randomUserPrefixes.length)] + "_" + Math.floor(Math.random() * 999);
+        
+        dummyComments.push({
+            user: rUser,
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${Math.random() + k}`,
+            text: rText
+        });
+    }
+    return {
+id: 'tw-' + Date.now() + '-' + i + '-' + Math.random().toString(36).substr(2, 8),
+avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(t.handle || i + Date.now() + Math.random())}&backgroundColor=ffffff`,
+user: t.user || "未知用户",
+verified: t.v || false,
+handle: t.handle || "@user",
+time: Math.floor(Math.random()*59) + 'm',
+text: t.text || "内容加载失败",
+lang: t.lang || 'zh',
+commentsList: [], // 初始置空，不预设评论
+image: Math.random() > 0.7 ? `https://picsum.photos/seed/${Date.now() + Math.random()}/600/400` : null,
+stats: { 
+    comments: Math.floor(Math.random()*5000) + 10000, 
+    retweets: Math.floor(Math.random()*5000) + 10000, 
+    likes: Math.floor(Math.random()*10000) + 10000, 
+    views: (Math.random()*5 + 10).toFixed(1) + 'M' 
+},
+interacted: { liked: false, retweeted: false }
+};
+}); // 新增：闭合 map 函数的大括号
+
+            const uniqueTweets = newGenerated.filter(tweet => !existingTexts.has(tweet.text));
+            const updatedTweets = [...uniqueTweets, ...tweets].slice(0, 100);
+            saveTweets(updatedTweets); 
+            showToast(`生成 ${uniqueTweets.length} 条新帖子`);
+            return uniqueTweets;
+        } catch (e) {
+            console.error(e);
+            return getFallbackTweets();
+        }
+    }
+    
+    // ========== 新增：API拉取随机数量评论 开始 ==========
+async function loadCommentsWithAPI(tweetId) {
+    // 找到当前点击的帖子
+    const tweet = tweets.find(t => t.id === tweetId);
+    if (!tweet) return;
+    // 获取页面上的加载按钮和评论容器
+    const loadingArea = document.getElementById(`commentLoadingArea_${tweetId}`);
+    const container = document.getElementById(`commentsContainer_${tweetId}`);
+    // 显示“正在获取”提示
+    if (loadingArea) loadingArea.innerHTML = '<div style="color:#999;">正在获取评论...</div>';
+
+    // 随机生成评论数量（3-10条，想改数量直接改数字即可）
+    const randomCommentCount = Math.floor(Math.random() * 8) + 3;
+    // 告诉API要生成什么风格的评论
+    const prompt = `请为帖子【${tweet.text}】生成${randomCommentCount}条X(Twitter)风格评论，不同用户发布，语气贴合年轻人，不要多余内容。
+    严格按JSON返回：[{"user":"评论者昵称","text":"评论内容"}]，只发JSON，别的都别写。`;
+
+    try {
+        // 调用你配置的API获取评论
+        const res = await fetchAIConsent(prompt);
+        // API请求失败的情况
+        if (!res) {
+            loadingArea.innerHTML = '<button class="secondary-btn" onclick="loadCommentsWithAPI(\''+tweetId+'\')"><i class="fas fa-redo"></i> 重新获取</button>';
+            showToast("评论获取失败，检查API配置");
+            return;
+        }
+        // 解析API返回的评论数据
+        const jsonMatch = res.match(/\[\s*\{[\s\S]*\}\s*\]/);
+        const cleanJson = jsonMatch ? jsonMatch[0] : res.replace(/```json/g, "").replace(/```/g, "").trim();
+        const commentData = JSON.parse(cleanJson);
+        if (!Array.isArray(commentData) || commentData.length === 0) throw new Error("无有效评论");
+
+        // 把获取到的评论保存到帖子里，刷新本地存储
+        tweet.commentsList = commentData;
+        saveTweets(tweets);
+        // 渲染评论到页面上
+        const commentHtml = commentData.map(c => {
+            const randomNum = Math.floor(Math.random() * 9999);
+            const fakeHandle = '@' + (c.user.replace(/[^\w]/g, '_')) + randomNum;
+            const randomTime = Math.floor(Math.random() * 23) + 1 + 'h';
+            const likes = Math.floor(Math.random() * 50);
+            const displayLikes = likes > 0 ? likes : '';
+            return `
+            <div class="comment-item">
+                <div class="comment-avatar" style="background-image:url('https://api.dicebear.com/7.x/notionists/svg?seed=${c.user}${randomNum}&backgroundColor=ffffff')"></div>
+                <div class="comment-body">
+                    <div class="comment-header-row">
+                        <span class="comment-user-name">${c.user}</span>
+                        <span class="comment-user-handle">${fakeHandle}</span>
+                        <span class="comment-time-ago">· ${randomTime}</span>
+                    </div>
+                    <div class="comment-text">${c.text}</div>
+                    <div class="comment-actions-bar">
+                        <div class="c-action-item"><i class="far fa-comment"></i></div>
+                        <div class="c-action-item"><i class="fas fa-retweet"></i></div>
+                        <div class="c-action-item like-btn"><i class="far fa-heart"></i> ${displayLikes}</div>
+                        <div class="c-action-item"><i class="far fa-chart-bar"></i></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        }).join('');
+        // 隐藏加载提示，显示评论
+        if (loadingArea) loadingArea.style.display = 'none';
+        if (container) container.innerHTML = commentHtml;
+    } catch (e) {
+        // 解析失败的情况，显示重新获取按钮
+        console.error("评论解析失败：", e);
+        loadingArea.innerHTML = '<button class="secondary-btn" onclick="loadCommentsWithAPI(\''+tweetId+'\')"><i class="fas fa-redo"></i> 重新获取</button>';
+        showToast("评论加载失败，点按钮重试");
+    }
+}
+// ========== 新增：API拉取随机数量评论 结束 ==========
+
+    function saveTweets(tweetList) {
+        tweets = tweetList;
+        localStorage.setItem('saved_tweets', JSON.stringify(tweets));
+    }
+
+    function getFallbackTweets() {
+        return [{
+            id: 'tw-fallback-1',
+            avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=system&backgroundColor=ffffff`,
+            user: "系统提醒",
+            verified: true,
+            handle: "@system",
+            time: '1m',
+            text: "⚠️ API 内容生成未成功。请检查设置中的配置。",
+            lang: 'zh',
+            commentsList: [
+                {user: "小助手", avatar: "", text: "请检查 API Key 是否正确"},
+                {user: "测试员", avatar: "", text: "或者网络是否通畅"}
+            ],
+            stats: { comments: 2, retweets: 0, likes: 0, views: '0' },
+            interacted: { liked: false, retweeted: false }
+        }];
+    }
+
+    // ================= X 热搜生成逻辑 =================
+    async function generateTrendsFromAPI() {
+        const userPrefs = config.get('xUserPrefs', '年轻女孩喜欢的、二次元、梦女文学');
+        const prompt = `根据偏好“${userPrefs}”生成10个话题趋势。JSON格式：[{"name":"话题名","count":"1.2M"}]。只输出纯JSON。`;
+        
+        const fallbackTrends = [
+            {name: "API连接中", count: "---"},
+            {name: "今日热门话题", count: "500K"},
+            {name: "极简桌面更新", count: "999K"}
+        ];
+
+        try {
+            const res = await fetchAIConsent(prompt);
+            let finalData = fallbackTrends;
+            if (res) {
+                const jsonMatch = res.match(/\[\s*\{[\s\S]*\}\s*\]/);
+                const cleanJson = jsonMatch ? jsonMatch[0] : res.replace(/```json/g, "").replace(/```/g, "").trim();
+                const data = JSON.parse(cleanJson);
+                if (data && data.length > 0) finalData = data;
+            }
+            trends = finalData; // 核心：赋值给全局变量
+            return finalData;
+        } catch (e) { 
+            trends = fallbackTrends;
+            return fallbackTrends; 
+        }
+    }
+
+        // ================= 初始化与生命周期 =================
+    
+    window.onload = function() {
+    // 1. 优先加载时间（确保100%显示，不依赖其他逻辑）
+    function loadTime() {
+        const now = new Date();
+        const bigTime = document.getElementById('bigTime');
+        const dateInfo = document.getElementById('dateInfo');
+        
+        if (bigTime) {
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            bigTime.textContent = hours + ":" + minutes;
+        }
+        
+        if (dateInfo) {
+            const options = { month: 'long', day: 'numeric', weekday: 'long' };
+            dateInfo.textContent = now.toLocaleDateString('zh-CN', options);
+        }
+    }
+    loadTime(); // 立即执行
+    setInterval(loadTime, 1000); // 每秒刷新
+    
+    // 2. 执行其他界面初始化
+    applySavedWallpaper();
+    applyXProfile();
+    applyChatProfile();
+    loadNoteLines();
+    
+    // 3. 处理分页圆点
+    dots = document.querySelectorAll('.dot');
+    // 4. 加载 P2 自定义图片
+    const savedP2Img = localStorage.getItem('p2_custom_pic');
+    if(savedP2Img) {
+        const img = document.getElementById('p2CustomImage');
+        const ph = document.getElementById('p2ImagePlaceholder');
+        if(img && ph) {
+            img.src = savedP2Img; 
+            img.style.display = 'block'; 
+            ph.style.display = 'none';
+        }
+    }
+    // 5. 点击空白处关闭长按菜单
+    document.addEventListener('click', (e) => {
+        const menu = document.getElementById('msgContextMenu');
+        if(menu && !menu.contains(e.target)) menu.style.display = 'none';
+    });
+};
+
+    function updateTime() {
+        const now = new Date();
+        const bigTime = document.getElementById('bigTime');
+        const dateInfo = document.getElementById('dateInfo');
+        
+        if (bigTime) {
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            bigTime.textContent = hours + ":" + minutes;
+        }
+        
+        if (dateInfo) {
+            const options = { month: 'long', day: 'numeric', weekday: 'long' };
+            dateInfo.textContent = now.toLocaleDateString('zh-CN', options);
+        }
+    }
+
+    function forceFullScreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(function(){});
+            document.body.classList.add('is-fullscreen');
+        }
+    }
+
+    // ================= 应用管理逻辑 =================
+    async function openApp(name) {
+        const win = document.getElementById('appWin');
+        const header = document.getElementById('appHeader');
+        document.getElementById('winTitle').textContent = name;
+        header.style.display = 'flex';
+        win.style.display = 'flex';
+        
+        if (name === '设置') renderSettingsMain();
+        else if (name === '世界书') renderWorldBookSettings();
+        else if (name === 'X') {
+            currentXTab = 'feed';
+            renderXApp();
+            if(tweets.length === 0) {
+                const initial = await generateTweetsFromAPI(5);
+                saveTweets(initial);
+                renderXApp();
+            }
+        } else if (name === 'Chat') {
+            renderChatApp('messages');
+        } else {
+            // 对于未实现功能的APP（如淘宝等），只显示简单占位
+            document.getElementById('winContent').innerHTML = `<div style="padding:40px; text-align:center; color:#999;">${name} 功能开发中</div>`;
+        }
+    }
+
+    // ================= Chat 核心：发送与 AI 回复 =================
+    async function sendChatMessage(name) {
+        const input = document.getElementById('chatInputField');
+        if(!input) return;
+        const text = input.value.trim();
+        const char = contacts.find(c => c.name === name) || { system: "你是一个普通的聊天伙伴。", bindWorldBook: '', bindMask: '', jealousy: 0 };
+        
+        // 构建世界书知识背景
+        let worldKnowledge = "";
+        const savedWorldBook = JSON.parse(localStorage.getItem('world_book') || "[]");
+        if (char.bindWorldBook) {
+            const bindedItem = savedWorldBook.find(item => item.key === char.bindWorldBook);
+            if (bindedItem) { worldKnowledge = `\n\n【背景知识】\n${bindedItem.content}`; }
+        }
+        
+        // 构建面具设定（用户身份）
+        let maskPrompt = "";
+        if (char.bindMask) {
+            const activeMask = masks.find(m => m.name === char.bindMask);
+            if (activeMask) { maskPrompt = `\n\n【用户身份设定】\n对方姓名：${activeMask.name}。\n设定细节：${activeMask.intro}`; }
+        }
+        
+        const jealousyLevel = char.jealousy || 0;
+        const finalSystemPrompt = `${char.system}${worldKnowledge}${maskPrompt}\n当前你对用户的醋意值为 ${jealousyLevel}%。请根据此醋意程度调整语气。请用中文回复。`;
+        
+        if (!chatHistories[name]) chatHistories[name] = [];
+        if (text) {
+            const newMsg = { role: 'user', text: text };
+            if (currentQuoteText) { newMsg.quote = currentQuoteText; cancelQuote(); }
+            chatHistories[name].push(newMsg);
+            input.value = '';
+            renderMessages(name);
+        }
+        
+        const typingIndicator = document.getElementById('chatTypingStatus');
+        if(typingIndicator) typingIndicator.style.display = 'block';
+        
+        const apiPrompt = text || (chatHistories[name].length > 0 ? chatHistories[name][chatHistories[name].length-1].text : "你好");
+        const aiReply = await fetchAIConsent(apiPrompt, finalSystemPrompt);
+        
+        if (aiReply) {
+            // 醋意值智能分析
+            await analyzeJealousy(name, text, aiReply);
+            
+            // 将回复内容按标点拆分，模拟真人分段发送感
+            const segments = aiReply.split(/([。！？\?\!\n]|\([^\)]*\)|（[^]）]*）)/).filter(s => s && s.trim().length > 0);
+            let combinedSegments = [];
+            for (let i = 0; i < segments.length; i++) {
+                let s = segments[i];
+                const isPunctuationOrAction = /^([。！？\?\!\n]|\([^\)]*\)|（[^]）]*）)$/.test(s);
+                if (isPunctuationOrAction && combinedSegments.length > 0) { combinedSegments[combinedSegments.length - 1] += s; } 
+                else { combinedSegments.push(s); }
+            }
+            
+            for (let segment of combinedSegments) {
+                let cleanSegment = segment.replace(/[“"”‘'“”]/g, '').trim();
+                if (!cleanSegment) continue;
+                await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 1000)); 
+                chatHistories[name].push({ role: 'ai', text: cleanSegment });
+                localStorage.setItem('chat_histories', JSON.stringify(chatHistories));
+                renderMessages(name);
+            }
+        } else {
+            chatHistories[name].push({ role: 'ai', text: "抱歉，我现在有点忙。" });
+            localStorage.setItem('chat_histories', JSON.stringify(chatHistories));
+            renderMessages(name);
+        }
+        if(typingIndicator) typingIndicator.style.display = 'none';
+    }
+    // ================= Chat 应用渲染逻辑 =================
+function renderChatApp(tab) {
+    currentChatTab = tab;
+    const header = document.getElementById('appHeader');
+    header.style.display = 'none'; 
+    const content = document.getElementById('winContent');
+    
+    let tabHtml = "";
+    let topPlusAction = "addNewContact()"; 
+    let topIcon = "fa-plus"; 
+
+    if (tab === 'messages') tabHtml = renderChatMessages();
+    else if (tab === 'contacts') {
+        tabHtml = renderChatContacts();
+        topPlusAction = "manageMasks()";
+        topIcon = "fa-plus"; 
+    }
+    else if (tab === 'moments') tabHtml = renderChatMoments();
+    else if (tab === 'me') tabHtml = renderChatMe();
+
+    content.innerHTML = `
+        <div class="chat-top-bar">
+            <i class="fas fa-chevron-left chat-top-back" onclick="closeApp()"></i>
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <span class="chat-top-title" id="chatHeaderTitle">${tab === 'messages' ? 'Chat' : tab === 'contacts' ? '通讯录' : tab === 'moments' ? '朋友圈' : '我'}</span>
+                <span id="chatTypingStatus" style="font-size: 10px; color: #888; display: none; margin-top: -2px;">对方正在输入...</span>
+            </div>
+            <div class="chat-top-plus" onclick="${topPlusAction}">
+                <i class="fas ${topIcon}"></i>
+            </div>
+        </div>
+        <div class="chat-tab-content">${tabHtml}</div>
+        <div class="chat-bottom-nav">
+            <div class="chat-nav-item ${tab==='messages'?'active':''}" onclick="renderChatApp('messages')"><i class="far fa-comment"></i>聊天</div>
+            <div class="chat-nav-item ${tab==='contacts'?'active':''}" onclick="renderChatApp('contacts')"><i class="far fa-address-book"></i>通讯录</div>
+            <div class="chat-nav-item ${tab==='moments'?'active':''}" onclick="renderChatApp('moments')"><i class="far fa-compass"></i>朋友圈</div>
+            <div class="chat-nav-item ${tab==='me'?'active':''}" onclick="renderChatApp('me')"><i class="far fa-user"></i>我</div>
+        </div>
+    `;
+}
+
+function renderChatMessages() {
+    if (contacts.length === 0) return '<div style="padding:40px; text-align:center; color:#999;">暂无消息</div>';
+    const sortedContacts = [...contacts].sort((a, b) => {
+        if (a.isTop && !b.isTop) return -1;
+        if (!a.isTop && b.isTop) return 1;
+        return 0;
+    });
+
+    return sortedContacts.map(function(c) {
+        return `
+        <div class="chat-item ${c.isTop ? 'is-top' : ''}" onclick="enterChatRoom('${c.name}')">
+            <div class="chat-avatar" style="background-image:url('${c.avatar}')"></div>
+            <div class="chat-info">
+                <div style="display:flex; justify-content:space-between;">
+                    <span class="chat-name">${c.name}</span>
+                    <span style="font-size:11px; color:#ccc;">${c.time}</span>
+                </div>
+                <div class="chat-msg">${c.msg}</div>
+            </div>
+        </div>
+    `}).join('');
+}
+
+// ================= 消息引用逻辑 =================
+function quoteMsg(charName, idx) {
+    const msg = chatHistories[charName][idx];
+    currentQuoteText = msg.text;
+    const quoteBar = document.getElementById('quotePreview');
+    const quoteTextElem = document.getElementById('quoteText');
+    if(quoteBar && quoteTextElem) {
+        quoteTextElem.textContent = currentQuoteText;
+        quoteBar.style.display = 'flex';
+    }
+    showToast("已选择引用内容");
+}
+
+function cancelQuote() {
+    currentQuoteText = "";
+    const quoteBar = document.getElementById('quotePreview');
+    if(quoteBar) quoteBar.style.display = 'none';
+}
+// ================= 面具（Masks）管理逻辑 =================
+function manageMasks() {
+    const content = document.getElementById('winContent');
+    content.innerHTML = `
+        <div style="padding: 20px; height: 100%; overflow-y: auto; background: #fff;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                <div style="font-size: 24px; font-weight: bold;">面具管理</div>
+                <i class="fas fa-times" onclick="renderChatApp('contacts')" style="font-size:20px; color:#999;"></i>
+            </div>
+            <button class="primary-btn" onclick="addNewMask()" style="margin-bottom: 20px; width:100%;">
+                <i class="fas fa-plus"></i> 创建新面具
+            </button>
+            <div id="masksList">
+                ${masks.length === 0 ? '<div style="text-align:center; color:#999; padding:40px;">暂无面具，请先创建</div>' : 
+                    masks.map((m, index) => `
+                        <div class="menu-item" style="flex-direction:row; align-items:center; padding: 15px; gap:12px;">
+                            <div style="width:45px; height:45px; border-radius:8px; background-image:url('${m.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=mask'}'); background-size:cover; flex-shrink:0;"></div>
+                            <div style="flex:1; overflow:hidden;">
+                                <div style="display:flex; justify-content:space-between; width:100%; margin-bottom:4px;">
+                                    <span style="font-weight:bold; font-size:16px;">${m.name}</span>
+                                    <div>
+                                        <i class="fas fa-edit" onclick="editMask(${index})" style="margin-right:12px; color:#1d9bf0;"></i>
+                                        <i class="fas fa-trash" onclick="deleteMask(${index})" style="color:#ff3b30;"></i>
+                                    </div>
+                                </div>
+                                <div style="color:#666; font-size:12px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${m.intro}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function addNewMask() {
+    const content = document.getElementById('winContent');
+    content.innerHTML = `
+        <div style="padding: 20px; height: 100%; overflow-y: auto; background: #fff;">
+            <div style="font-size: 20px; font-weight: bold; margin-bottom: 20px;">创建面具身份</div>
+            <div style="margin-bottom: 20px;">
+                <label class="setting-label">面具头像</label>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div id="maskPreviewAvatar" style="width: 70px; height: 70px; border-radius: 8px; background: #f0f0f0; background-size: cover; background-position: center;"></div>
+                    <button class="secondary-btn" onclick="document.getElementById('maskAvatarInput').click()" style="padding: 10px;">上传头像</button>
+                </div>
+                <input type="file" id="maskAvatarInput" accept="image/*" style="display:none" onchange="previewMaskAvatar(this)">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label class="setting-label">面具名称 (我的称呼)</label>
+                <input type="text" id="maskName" class="api-input" placeholder="例如：调查员" style="width:100%;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label class="setting-label">身份设定 (角色如何看待你)</label>
+                <textarea id="maskIntro" class="api-input" rows="5" placeholder="例如：你是一个神秘的过客..." style="width:100%; resize: none;"></textarea>
+            </div>
+            <div class="btn-group">
+                <button class="primary-btn" onclick="saveMask()">保存面具</button>
+                <button class="secondary-btn" onclick="manageMasks()">取消</button>
+            </div>
+        </div>
+    `;
+}
+
+function previewMaskAvatar(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById('maskPreviewAvatar') || document.getElementById('editMaskPreviewAvatar');
+            if(preview) preview.style.backgroundImage = `url('${e.target.result}')`;
+            window.tempMaskAvatar = e.target.result;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function saveMask() {
+    const name = document.getElementById('maskName').value.trim();
+    const intro = document.getElementById('maskIntro').value.trim();
+    if(!name || !intro) { showToast("请填写完整信息"); return; }
+    masks.push({ 
+        name, 
+        intro, 
+        avatar: window.tempMaskAvatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + name 
+    });
+    localStorage.setItem('chat_masks', JSON.stringify(masks));
+    delete window.tempMaskAvatar;
+    showToast("面具创建成功");
+    manageMasks();
+}
+
+function deleteMask(index) {
+    if(confirm("确定删除该面具吗？")) {
+        masks.splice(index, 1);
+        localStorage.setItem('chat_masks', JSON.stringify(masks));
+        manageMasks();
+    }
+}
+
+function editMask(index) {
+    const m = masks[index];
+    const content = document.getElementById('winContent');
+    content.innerHTML = `
+        <div style="padding: 20px; height: 100%; overflow-y: auto; background: #fff;">
+            <div style="font-size: 20px; font-weight: bold; margin-bottom: 20px;">编辑面具身份</div>
+            <div style="margin-bottom: 20px;">
+                <label class="setting-label">面具头像</label>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div id="editMaskPreviewAvatar" style="width: 70px; height: 70px; border-radius: 8px; background-image: url('${m.avatar}'); background-size: cover; background-position: center;"></div>
+                    <button class="secondary-btn" onclick="document.getElementById('maskAvatarInput').click()" style="padding: 10px;">更换头像</button>
+                </div>
+                <input type="file" id="maskAvatarInput" accept="image/*" style="display:none" onchange="previewMaskAvatar(this)">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label class="setting-label">面具名称</label>
+                <input type="text" id="editMaskName" class="api-input" value="${m.name}" style="width:100%;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label class="setting-label">身份设定</label>
+                <textarea id="editMaskIntro" class="api-input" rows="5" style="width:100%; resize: none;">${m.intro}</textarea>
+            </div>
+            <div class="btn-group">
+                <button class="primary-btn" onclick="updateMask(${index})">保存修改</button>
+                <button class="secondary-btn" onclick="manageMasks()">取消</button>
+            </div>
+        </div>
+    `;
+}
+
+function updateMask(index) {
+    const name = document.getElementById('editMaskName').value.trim();
+    const intro = document.getElementById('editMaskIntro').value.trim();
+    if(!name || !intro) { showToast("请填写完整信息"); return; }
+    masks[index] = { 
+        name, 
+        intro, 
+        avatar: window.tempMaskAvatar || masks[index].avatar 
+    };
+    localStorage.setItem('chat_masks', JSON.stringify(masks));
+    delete window.tempMaskAvatar;
+    showToast("修改成功");
+    manageMasks();
+}
+
+// ================= 角色卡（Contacts）管理逻辑 =================
+function addNewContact() {
+    const savedWorldBook = JSON.parse(localStorage.getItem('world_book') || "[]");
+    let worldBookOptions = '<option value="0">不关联世界书</option>';
+    savedWorldBook.forEach((item, index) => {
+        worldBookOptions += `<option value="${index+1}">${item.key}</option>`;
+    });
+    
+    let maskOptions = '<option value="">不佩戴面具 (使用默认身份)</option>';
+    masks.forEach((m, index) => {
+        maskOptions += `<option value="${index}">${m.name}</option>`;
+    });
+    
+    const winContent = document.getElementById('winContent');
+    winContent.innerHTML = `
+        <div style="padding: 20px; height: 100%; overflow-y: auto; background: #fff;">
+            <div style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">添加角色卡</div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">角色头像</label>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div id="previewAvatar" style="width: 80px; height: 80px; border-radius: 12px; background: #f0f0f0; background-size: cover; background-position: center;"></div>
+                    <button class="secondary-btn" onclick="document.getElementById('charAvatarInput').click()" style="padding: 10px;">选择图片</button>
+                </div>
+                <input type="file" id="charAvatarInput" accept="image/*" style="display:none" onchange="previewCharAvatar(this)">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">角色姓名</label>
+                <input type="text" id="charName" class="api-input" placeholder="例如：小助手" style="width:100%;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">使用的面具 (我的身份)</label>
+                <select id="bindMask" class="worldbook-select">
+                    ${maskOptions}
+                </select>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">关联世界书</label>
+                <select id="bindWorldBook" class="worldbook-select">
+                    ${worldBookOptions}
+                </select>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">角色人设</label>
+                <textarea id="charSystem" class="api-input" rows="5" placeholder="人设设定..." style="width:100%; resize: vertical;"></textarea>
+            </div>
+            <div class="btn-group">
+                <button class="primary-btn" onclick="saveNewContact()">保存角色卡</button>
+                <button class="secondary-btn" onclick="renderChatApp('contacts')">取消</button>
+            </div>
+        </div>
+    `;
+}
+
+function saveNewContact() {
+    const name = document.getElementById('charName')?.value.trim();
+    if (!name) { showToast('请输入角色姓名'); return; }
+    const maskIndex = document.getElementById('bindMask').value;
+    const bindMaskName = maskIndex !== "" ? masks[maskIndex].name : "";
+    const worldBookIndex = parseInt(document.getElementById('bindWorldBook')?.value || 0);
+    const savedWorldBook = JSON.parse(localStorage.getItem('world_book') || "[]");
+    const bindWorldBookKey = worldBookIndex > 0 ? savedWorldBook[worldBookIndex-1].key : '';
+
+    const newChar = {
+        id: Date.now(),
+        name: name,
+        avatar: window.tempAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
+        system: document.getElementById('charSystem')?.value.trim() || "你是一个普通的聊天伙伴。",
+        bindWorldBook: bindWorldBookKey,
+        bindMask: bindMaskName,
+        msg: "你好！",
+        time: "刚刚",
+        jealousy: 0,
+        isTop: false
+    };
+    contacts.push(newChar);
+    localStorage.setItem('chat_contacts', JSON.stringify(contacts));
+    delete window.tempAvatar;
+    showToast('添加成功');
+    renderChatApp('contacts');
+}
+
+function renderMessages(name) {
+    const list = document.getElementById('msgList');
+    if(!list) return;
+    if (!chatHistories[name]) chatHistories[name] = [];
+    list.innerHTML = chatHistories[name].map((m, idx) => renderSingleMessage(m, name, idx)).join('');
+    list.scrollTop = list.scrollHeight;
+}
+
+function triggerAISend(name) {
+    sendChatMessage(name);
+}
+
+function renderSingleMessage(m, charName, idx) {
+    const char = contacts.find(c => c.name === charName);
+    const isUser = (m.role === 'user');
+    let avatarUrl = "";
+    if (isUser) {
+        const activeMask = masks.find(mask => mask.name === char.bindMask);
+        avatarUrl = activeMask ? activeMask.avatar : config.get('chatAvatar', 'https://api.dicebear.com/7.x/notionists/svg?seed=me');
+    } else { avatarUrl = char.avatar; }
+    let quoteHtml = m.quote ? `<div class="msg-quote">${m.quote}</div>` : '';
+    return `
+        <div class="msg-wrapper ${isUser ? 'msg-right' : 'msg-left'}" 
+             onmousedown="startLongPress(event, '${charName}', ${idx})" 
+             onmouseup="cancelLongPress()" 
+             ontouchstart="startLongPress(event, '${charName}', ${idx})" 
+             ontouchend="cancelLongPress()">
+            <div class="msg-bubble-avatar" style="background-image: url('${avatarUrl}');"></div>
+            <div class="msg-bubble">${quoteHtml}${m.text}</div>
+        </div>
+    `;
+}
+
+function startLongPress(e, charName, idx) {
+    const touch = e.touches ? e.touches[0] : e;
+    const pageX = touch.pageX;
+    const pageY = touch.pageY;
+    longPressTimer = setTimeout(() => { showMsgMenu(charName, idx, pageX, pageY); }, 600);
+}
+
+function cancelLongPress() { clearTimeout(longPressTimer); }
+
+function showMsgMenu(charName, idx, x, y) {
+    const menu = document.getElementById('msgContextMenu');
+    const container = document.getElementById('mainContainer').getBoundingClientRect();
+    menu.style.display = 'flex';
+    menu.style.left = `${Math.min(x - container.left, 240)}px`;
+    menu.style.top = `${y - container.top - 40}px`;
+    
+    document.getElementById('menuDelete').onclick = () => deleteMsg(charName, idx);
+    document.getElementById('menuEdit').onclick = () => editMsg(charName, idx);
+    document.getElementById('menuBacktrack').onclick = () => backtrackMsg(charName, idx);
+    document.getElementById('menuQuote').onclick = () => quoteMsg(charName, idx);
+}
+// ================= 聊天消息操作逻辑 =================
+function deleteMsg(charName, idx) { 
+    chatHistories[charName].splice(idx, 1); 
+    saveChatAndRefresh(charName); 
+}
+
+function editMsg(charName, idx) {
+    const oldText = chatHistories[charName][idx].text;
+    const newText = prompt("编辑消息内容:", oldText);
+    if (newText !== null) { 
+        chatHistories[charName][idx].text = newText; 
+        saveChatAndRefresh(charName); 
+    }
+}
+
+function backtrackMsg(charName, idx) {
+    if(confirm("回溯将删除此条及之后的所有消息，确定吗？")) {
+        chatHistories[charName] = chatHistories[charName].slice(0, idx);
+        saveChatAndRefresh(charName);
+    }
+}
+
+function saveChatAndRefresh(charName) {
+    localStorage.setItem('chat_histories', JSON.stringify(chatHistories));
+    renderMessages(charName);
+}
+
+function previewCharAvatar(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById('previewAvatar') || document.getElementById('editPreviewAvatar');
+            if(preview) preview.style.backgroundImage = `url('${e.target.result}')`;
+            window.tempAvatar = e.target.result;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// ================= 通讯录列表渲染 =================
+function renderChatContacts() {
+    const sorted = [...contacts].sort(function(a,b) { return a.name.localeCompare(b.name, 'zh'); });
+    return `
+        <div style="padding:10px 15px; color:#666; font-size:12px;">新朋友</div>
+        <div class="chat-item" onclick="addNewContact()">
+            <div class="chat-avatar" style="background-color:#fa9d3b; display:flex; align-items:center; justify-content:center;">
+                <i class="fas fa-user-plus" style="color:#fff;"></i>
+            </div>
+            <div class="chat-name">添加新的角色卡</div>
+        </div>
+        <div style="padding:10px 15px; color:#666; font-size:12px;">我的角色卡</div>
+        ${sorted.length > 0 ? sorted.map(function(c) { 
+            const bindTip = c.bindWorldBook ? `【书：${c.bindWorldBook}】` : '';
+            const maskTip = c.bindMask ? `【面具：${c.bindMask}】` : '';
+            return `
+            <div class="chat-item" onclick="viewContactDetail(${c.id})">
+                <div class="chat-avatar" style="background-image:url('${c.avatar}')"></div>
+                <div style="flex: 1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="chat-name">${c.name}</span>
+                        <span style="font-size:11px; color:#ccc;">${c.time}</span>
+                    </div>
+                    <div style="font-size:12px; color:#999; margin-top:2px;">${maskTip}${bindTip}${(c.system || '点击查看人设').substring(0, 15)}...</div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <i class="fas fa-comment" style="color:#07c160; font-size:18px;" onclick="event.stopPropagation(); enterChatRoom('${c.name}')"></i>
+                    <i class="fas fa-trash" style="color:#ff3b30; font-size:18px;" onclick="event.stopPropagation(); deleteContact(${c.id})"></i>
+                </div>
+            </div>
+        `}).join('') : '<div style="padding:20px; text-align:center; color:#999;">暂无角色卡</div>'}
+    `;
+}
+
+function viewContactDetail(id) {
+    const contact = contacts.find(c => c.id === id);
+    if (!contact) return;
+    const content = document.getElementById('winContent');
+    content.innerHTML = `
+        <div style="height:100%; display:flex; flex-direction:column; background:#fff;">
+            <div class="chat-top-bar">
+                <i class="fas fa-chevron-left chat-top-back" onclick="renderChatApp('contacts')"></i>
+                <span class="chat-top-title">角色详情</span>
+                <i class="fas fa-edit" style="font-size:20px;" onclick="editContact(${id})"></i>
+            </div>
+            <div style="flex:1; overflow-y: auto; padding:20px;">
+                <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 30px;">
+                    <div style="width: 100px; height: 100px; border-radius: 20px; background-image: url('${contact.avatar}'); background-size: cover; background-position: center; margin-bottom: 15px;"></div>
+                    <h2 style="font-size: 22px;">${contact.name}</h2>
+                </div>
+                <div style="background: #f5f5f5; border-radius: 15px; padding: 15px; margin-bottom: 20px;">
+                    <h3 style="margin-bottom: 8px; font-size: 15px; color: #333;">📝 角色人设</h3>
+                    <p style="color: #666; line-height: 1.5; font-size: 14px;">${contact.system || '未设置人设'}</p>
+                </div>
+                <button class="primary-btn" onclick="enterChatRoom('${contact.name}')" style="width:100%;">开始聊天</button>
+            </div>
+        </div>
+    `;
+}
+
+function editContact(id) {
+    const contact = contacts.find(c => c.id === id);
+    if (!contact) return;
+    const savedWorldBook = JSON.parse(localStorage.getItem('world_book') || "[]");
+    let worldBookOptions = '<option value="0">不关联世界书</option>';
+    savedWorldBook.forEach((item, index) => {
+        const selected = contact.bindWorldBook === item.key ? 'selected' : '';
+        worldBookOptions += `<option value="${index+1}" ${selected}>${item.key}</option>`;
+    });
+    let maskOptions = '<option value="">不佩戴面具</option>';
+    masks.forEach((m, index) => {
+        const selected = contact.bindMask === m.name ? 'selected' : '';
+        maskOptions += `<option value="${index}" ${selected}>${m.name}</option>`;
+    });
+    const content = document.getElementById('winContent');
+    content.innerHTML = `
+        <div style="padding: 20px; height: 100%; overflow-y: auto; background:#fff;">
+            <div style="font-size: 22px; font-weight: bold; margin-bottom: 20px;">编辑角色卡</div>
+            <div style="margin-bottom: 20px;">
+                <label class="setting-label">角色头像</label>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div id="editPreviewAvatar" style="width: 80px; height: 80px; border-radius: 12px; background-image: url('${contact.avatar}'); background-size: cover; background-position: center;"></div>
+                    <button class="secondary-btn" onclick="document.getElementById('charAvatarInput').click()" style="padding: 10px;">更换图片</button>
+                </div>
+                <input type="file" id="charAvatarInput" accept="image/*" style="display:none" onchange="previewCharAvatar(this)">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label class="setting-label">角色姓名</label>
+                <input type="text" id="editCharName" class="api-input" value="${contact.name}" style="width:100%;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label class="setting-label">佩戴面具</label>
+                <select id="editBindMask" class="worldbook-select">${maskOptions}</select>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label class="setting-label">关联世界书</label>
+                <select id="editBindWorldBook" class="worldbook-select">${worldBookOptions}</select>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label class="setting-label">角色人设</label>
+                <textarea id="editCharSystem" class="api-input" rows="5" style="width:100%; resize: vertical;">${contact.system || ''}</textarea>
+            </div>
+            <div class="btn-group">
+                <button class="primary-btn" onclick="updateContact(${id})">保存修改</button>
+                <button class="secondary-btn" onclick="renderChatApp('contacts')">取消</button>
+            </div>
+        </div>
+    `;
+}
+
+function updateContact(id) {
+    const newName = document.getElementById('editCharName')?.value.trim();
+    if (!newName) { showToast('请输入角色姓名'); return; }
+    
+    const index = contacts.findIndex(c => c.id === id);
+    const oldName = contacts[index].name;
+
+    if (newName !== oldName) {
+        chatHistories[newName] = chatHistories[oldName] || [];
+        delete chatHistories[oldName];
+        localStorage.setItem('chat_histories', JSON.stringify(chatHistories));
+    }
+
+    const maskIdx = document.getElementById('editBindMask').value;
+    const maskName = maskIdx !== "" ? masks[maskIdx].name : "";
+    const wbIdx = parseInt(document.getElementById('editBindWorldBook').value || 0);
+    const savedWB = JSON.parse(localStorage.getItem('world_book') || "[]");
+    const wbKey = wbIdx > 0 ? savedWB[wbIdx-1].key : '';
+
+    contacts[index].name = newName;
+    contacts[index].bindMask = maskName;
+    contacts[index].bindWorldBook = wbKey;
+    contacts[index].system = document.getElementById('editCharSystem')?.value.trim() || contacts[index].system;
+    
+    if (window.tempAvatar) {
+        contacts[index].avatar = window.tempAvatar;
+        delete window.tempAvatar;
+    }
+
+    localStorage.setItem('chat_contacts', JSON.stringify(contacts));
+    showToast('修改成功');
+    renderChatApp('contacts');
+}
+
+function deleteContact(id) {
+    if(confirm("确定要删除这个角色吗？")) {
+        contacts = contacts.filter(function(c) { return c.id !== id; });
+        localStorage.setItem('chat_contacts', JSON.stringify(contacts));
+        renderChatApp('contacts');
+    }
+}
+
+// ================= 朋友圈与个人中心渲染 =================
+function renderChatMoments() {
+    return `
+        <div class="moments-header">
+            <img src="https://picsum.photos/seed/wallpaper/600/400" class="moments-cover">
+            <div class="moments-user">
+                <span class="moments-user-name">${config.get('chatUserName', 'User')}</span>
+                <div class="moments-user-avatar" style="background-image:url('${config.get('chatAvatar', 'https://api.dicebear.com/7.x/notionists/svg?seed=me')}')"></div>
+            </div>
+        </div>
+        <div class="moment-card">
+            <div class="chat-avatar" style="background-image:url('https://api.dicebear.com/7.x/bottts/svg?seed=ai')"></div>
+            <div class="moment-content">
+                <div class="moment-name">系统小助手</div>
+                <div class="moment-text">欢迎来到 Chat 朋友圈！</div>
+                <div class="moment-time">刚刚</div>
+            </div>
+        </div>
+    `;
+}
+
+function renderChatMe() {
+    const name = config.get('chatUserName', config.get('xName', 'User'));
+    const handle = config.get('chatUserId', config.get('xHandle', '@user_id').replace('@',''));
+    const avatar = config.get('chatAvatar', 'https://api.dicebear.com/7.x/notionists/svg?seed=me');
+   
+    return `
+        <div class="me-header">
+            <div class="me-avatar" style="background-image:url('${avatar}')" onclick="document.getElementById('chatAvatarInput').click()"></div>
+            <div class="me-info">
+                <h2 onclick="editChatName()">${name}</h2>
+                <p onclick="editChatId()">微信号：${handle}</p>
+            </div>
+        </div>
+        <input type="file" id="chatAvatarInput" accept="image/*" style="display:none" onchange="handleChatAvatarUpload(this)">
+        <div class="me-menu">
+            <div class="me-item"><span>服务</span><i class="fas fa-chevron-right"></i></div>
+            <div class="me-item" style="border-top:8px solid #ededed;"><span>收藏</span><i class="fas fa-chevron-right"></i></div>
+            <div class="me-item"><span>朋友圈</span><i class="fas fa-chevron-right"></i></div>
+            <div class="me-item"><span>卡包</span><i class="fas fa-chevron-right"></i></div>
+            <div class="me-item" style="border-top:8px solid #ededed;" onclick="openApp('设置')"><span>设置</span><i class="fas fa-chevron-right"></i></div>
+        </div>
+    `;
+}
+
+function handleChatAvatarUpload(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            config.set('chatAvatar', e.target.result);
+            renderChatApp('me');
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function editChatName() {
+    const n = prompt("修改 Chat 昵称:", config.get('chatUserName', 'User'));
+    if (n && n.trim()) { config.set('chatUserName', n.trim()); renderChatApp('me'); }
+}
+
+function editChatId() {
+    const h = prompt("修改 Chat 微信号:", config.get('chatUserId', 'user_id'));
+    if (h && h.trim()) { config.set('chatUserId', h.trim()); renderChatApp('me'); }
+}
+    // ================= 通用交互与 X 应用逻辑 =================
+    function closeApp() { 
+        document.getElementById('appWin').style.display = 'none'; 
+        toggleSidebar(false);
+        toggleCompose(false);
+        closeCharDetail(); 
+    }
+
+    function toggleSidebar(show) {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        if(show) {
+            overlay.style.display = 'block';
+            setTimeout(function() { sidebar.classList.add('active'); }, 10);
+            document.getElementById('followerCountDisplay').textContent = formatNum(userFollowers);
+        } else {
+            sidebar.classList.remove('active');
+            setTimeout(function() { overlay.style.display = 'none'; }, 300);
+        }
+    }
+
+    function renderXApp() {
+        const header = document.getElementById('appHeader');
+        header.style.display = 'none'; 
+        const content = document.getElementById('winContent');
+        const userAvatar = config.get('xAvatar', 'https://api.dicebear.com/7.x/notionists/svg?seed=me&backgroundColor=ffffff');
+        content.innerHTML = `
+            <div class="x-header" style="margin-top: 40px;">
+                <div class="x-avatar-mini" id="xMiniAvatar" style="background-image: url('${userAvatar}');" onclick="toggleSidebar(true)"></div>
+                <div class="x-logo"><i class="fab fa-x-twitter"></i></div>
+                <div style="width:32px; display:flex; justify-content:flex-end;" onclick="closeApp()"><i class="fas fa-house" style="font-size: 18px; color: #536471;"></i></div>
+            </div>
+            <div id="xTabContent" style="flex:1; display:flex; flex-direction:column; overflow:hidden; position:relative; width:100%;">
+                ${currentXTab === 'feed' ? renderFeedUI() : renderSearchUI()}
+            </div>
+            <div class="x-fab" onclick="toggleCompose(true)"><i class="fas fa-plus"></i></div>
+            <div class="x-bottom-nav">
+                <div class="x-nav-icon ${currentXTab === 'feed' ? 'active' : ''}" onclick="switchXTab('feed')"><i class="fas fa-house"></i></div>
+                <div class="x-nav-icon ${currentXTab === 'search' ? 'active' : ''}" onclick="switchXTab('search')"><i class="fas fa-magnifying-glass"></i></div>
+                <div class="x-nav-icon"><i class="far fa-bell"></i></div>
+                <div class="x-nav-icon"><i class="far fa-envelope"></i></div>
+            </div>
+        `;
+        if(currentXTab === 'feed') initPullToRefresh();
+    }
+
+    function renderFeedUI() {
+    return `
+        <div class="x-tabs" style="position: relative;">
+            <div class="x-tab-item active" onclick="refreshX()">为你推荐</div>
+            <div class="x-tab-item" onclick="renderFollowingPage()">正在关注</div>
+            <!-- 右上角加号备用按钮 -->
+            <div style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%);">
+                <i class="fas fa-plus x-follow-plus" style="font-size: 18px; color: #1d9bf0; cursor: pointer;" onclick="handleFollowPlusClick()"></i>
+            </div>
+        </div>
+        <div class="pull-to-refresh" id="pullToRefresh"><i class="fas fa-sync-alt fa-spin"></i></div>
+        <div class="x-feed" id="xMainFeed" style="padding-bottom: 50px;">
+            ${tweets.length === 0 ? '<div style="padding:50px; text-align:center; color:#999;">正在连接 API...</div>' : generateTweetHtml(tweets)}
+        </div>
+    `;
+}
+
+// 新增：正在关注页面专属渲染函数
+// 正在关注页面专属渲染函数（已清除模拟内容，预留Chat角色联动接口）
+function renderFollowingPage() {
+    const content = document.getElementById('xTabContent');
+    content.innerHTML = `
+        <div class="x-tabs" style="position: relative;">
+            <div class="x-tab-item" onclick="refreshX()">为你推荐</div>
+            <div class="x-tab-item active" onclick="renderFollowingPage()">正在关注</div>
+            <!-- 保留右上角加号 -->
+            <div style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%);">
+                <i class="fas fa-plus x-follow-plus" style="font-size: 18px; color: #1d9bf0; cursor: pointer;" onclick="handleFollowPlusClick()"></i>
+            </div>
+        </div>
+        <div class="x-feed" id="xFollowingFeed" style="padding-bottom: 50px;">
+            <!-- 清空模拟内容，后续将通过Chat角色联动填充 -->
+            <div style="padding:50px; text-align:center; color:#999;">暂无关注的角色，可从Chat通讯录添加联动</div>
+        </div>
+    `;
+}
+
+// 新增：正在关注页面右上角加号备用点击事件
+function handleFollowPlusClick() {
+    showToast("加号功能待开发（备用接口）");
+    // 后续想加功能，直接写在这里就行，比如：添加关注、创建分组
+}
+
+// 正在关注页面专属渲染函数（关联Chat角色，点击角色跳转添加界面）
+function renderFollowingPage() {
+    const content = document.getElementById('xTabContent');
+    // 读取Chat通讯录中的角色
+    const chatContacts = JSON.parse(localStorage.getItem('chat_contacts') || "[]");
+    
+    content.innerHTML = `
+        <div class="x-tabs" style="position: relative;">
+            <div class="x-tab-item" onclick="refreshX()">为你推荐</div>
+            <div class="x-tab-item active" onclick="renderFollowingPage()">正在关注</div>
+            <!-- 右上角加号备用按钮 -->
+            <div style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%);">
+                <i class="fas fa-plus x-follow-plus" style="font-size: 18px; color: #1d9bf0; cursor: pointer;" onclick="handleFollowPlusClick()"></i>
+            </div>
+        </div>
+        <div class="x-feed" id="xFollowingFeed" style="padding-bottom: 50px;">
+            ${chatContacts.length === 0 ? 
+                '<div style="padding:50px; text-align:center; color:#999;">暂无Chat角色，可从通讯录添加</div>' : 
+                chatContacts.map(contact => `
+                    <div class="x-tweet" onclick="openFollowRoleSetting('${contact.id}')" style="cursor: pointer;">
+                        <div class="tweet-avatar" style="background-image:url('${contact.avatar}');"></div>
+                        <div class="tweet-content">
+                            <div class="tweet-user">${contact.name}</div>
+                            <div class="tweet-text">点击配置该角色的关注设置</div>
+                            <div class="tweet-actions">
+                                <span class="action-item" style="color:#1d9bf0;">配置发帖/记忆共享</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+        </div>
+    `;
+}
+
+// 正在关注页面右上角加号点击事件（关联Chat角色添加）
+function handleFollowPlusClick() {
+    // 跳转至Chat应用的通讯录页面，方便添加新角色
+    openApp('Chat');
+    setTimeout(() => {
+        renderChatApp('contacts'); // 延迟执行，确保Chat应用加载完成
+    }, 300);
+    showToast("请先在Chat添加角色，再返回关注");
+}
+
+// 打开角色关注设置界面（发帖频率+记忆共享）
+function openFollowRoleSetting(contactId) {
+    const contact = JSON.parse(localStorage.getItem('chat_contacts') || "[]").find(c => c.id == contactId);
+    if (!contact) return;
+    
+    // 读取该角色已保存的设置（无则默认）
+    const followSettings = JSON.parse(localStorage.getItem('x_follow_settings') || "{}");
+    const roleSettings = followSettings[contactId] || {
+        postFrequency: 'daily', // 默认每日发帖
+        shareChatMemory: false  // 默认不共享Chat记忆
+    };
+    
+    const content = document.getElementById('winContent');
+    content.innerHTML = `
+        <div style="display:flex; flex-direction:column; height:100%; background:#fff; width:100%;">
+            <div class="nav-header" style="padding-top:40px; border-bottom: 1px solid #eff3f4;">
+                <i class="fas fa-arrow-left back-btn" onclick="renderFollowingPage()"></i>
+                <span style="font-weight: 700; font-size: 18px;">${contact.name} 的关注设置</span>
+            </div>
+            <div class="settings-content">
+                <!-- 发帖频率设置 -->
+                <div class="setting-item">
+                    <label class="setting-label">发帖频率</label>
+                    <select id="postFrequencySelect" class="worldbook-select">
+                        <option value="hourly" ${roleSettings.postFrequency === 'hourly' ? 'selected' : ''}>每小时</option>
+                        <option value="daily" ${roleSettings.postFrequency === 'daily' ? 'selected' : ''}>每日</option>
+                        <option value="weekly" ${roleSettings.postFrequency === 'weekly' ? 'selected' : ''}>每周</option>
+                        <option value="monthly" ${roleSettings.postFrequency === 'monthly' ? 'selected' : ''}>每月</option>
+                    </select>
+                </div>
+                
+                <!-- 记忆共享开关 -->
+                <div class="setting-item">
+                    <label class="setting-label">与Chat聊天记忆共享</label>
+                    <div style="display: flex; align-items: center; gap: 10px; background:#f1f1f4; padding:16px; border-radius:18px;">
+                        <span>开启后，该角色的X发帖会引用Chat聊天内容</span>
+                        <input type="checkbox" id="shareMemoryCheck" style="transform: scale(1.3);" ${roleSettings.shareChatMemory ? 'checked' : ''}>
+                    </div>
+                </div>
+                
+                <button class="primary-btn" style="width:100%; margin-top:30px;" onclick="saveFollowRoleSetting('${contactId}')">
+                    保存设置
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// 保存角色的关注设置（发帖频率+记忆共享）
+function saveFollowRoleSetting(contactId) {
+    const postFrequency = document.getElementById('postFrequencySelect').value;
+    const shareMemory = document.getElementById('shareMemoryCheck').checked;
+    
+    // 读取已有设置，更新当前角色配置
+    const followSettings = JSON.parse(localStorage.getItem('x_follow_settings') || "{}");
+    followSettings[contactId] = {
+        postFrequency: postFrequency,
+        shareChatMemory: shareMemory
+    };
+    
+    // 保存到本地存储
+    localStorage.setItem('x_follow_settings', JSON.stringify(followSettings));
+    showToast("设置保存成功！");
+    
+    // 返回正在关注页面
+    setTimeout(() => {
+        renderFollowingPage();
+    }, 1000);
+}
+
+    function renderSearchUI() {
+        // 使用已加载的trends变量渲染热搜
+        return `
+            <div style="padding: 10px 15px;">
+                <div style="background:#eff3f4; border-radius:20px; padding:10px 20px; color:#536471; font-size:15px;"><i class="fas fa-magnifying-glass"></i> &nbsp;搜索 X</div>
+            </div>
+            <div style="padding: 15px; border-bottom: 1px solid #eff3f4; font-size: 20px; font-weight: 800;">趋势</div>
+            <div class="x-feed" id="xTrendFeed" style="padding-bottom: 50px;">
+                ${trends.length === 0 ? 
+                    '<div style="padding:20px; text-align:center; color:#999;">正在获取热搜...</div>' : 
+                    trends.map(function(t, i) { return `
+                    <div class="search-trend-item">
+                        <div class="trend-meta">${i + 1} · 正在热搜</div>
+                        <div class="trend-name">#${t.name}#</div>
+                        <div class="trend-stats">${t.count} 帖子</div>
+                    </div>
+                `}).join('')}
+            </div>
+        `;
+    }
+
+    async function switchXTab(tab) {
+        currentXTab = tab;
+        if(tab === 'search') { 
+            renderXApp(); // 先显示“加载中”
+            await generateTrendsFromAPI(); // 等待数据
+        }
+        renderXApp(); // 拿到数据后再刷一次页面
+    }
+    
+    async function refreshX() {
+        const newTweets = await generateTweetsFromAPI(5);
+        if(newTweets.length > 0) { renderXApp(); }
+    }
+
+    function formatNum(num) {
+        if(num >= 10000) return (num/10000).toFixed(1) + '万';
+        return num;
+    }
+
+    function generateTweetHtml(tweetList) {
+        return tweetList.map(function(t) {
+            return `
+            <div class="x-tweet" onclick="openTweetDetail('${t.id}')">
+                <div class="tweet-avatar" style="background-image:url('${t.avatar}');"></div>
+                <div class="tweet-content">
+                    <div class="tweet-user">
+                        ${t.user} ${t.verified ? '<i class="fas fa-check-circle" style="color:#1d9bf0; font-size:12px;"></i>' : ''}
+                        <span class="tweet-handle">${t.handle} · ${t.time}</span>
+                    </div>
+                    <div class="tweet-text">${t.text}</div>
+                    ${t.image ? `<div class="image-container"><img src="${t.image}" class="tweet-image"></div>` : ''}
+                    <div class="tweet-actions">
+                        <span class="action-item"><i class="far fa-comment"></i> ${formatNum(t.stats.comments)}</span>
+                        <span class="action-item ${t.interacted.retweeted ? 'retweeted' : ''}" onclick="handleInteraction(event, '${t.id}', 'retweet')"><i class="fas fa-retweet"></i> ${formatNum(t.stats.retweets)}</span>
+                        <span class="action-item ${t.interacted.liked ? 'liked' : ''}" onclick="handleInteraction(event, '${t.id}', 'like')"><i class="${t.interacted.liked ? 'fas' : 'far'} fa-heart"></i> ${formatNum(t.stats.likes)}</span>
+                        <span><i class="far fa-chart-bar"></i> ${t.stats.views}</span>
+                    </div>
+                </div>
+            </div>
+        `}).join('');
+    }
+
+    function handleInteraction(event, id, type) {
+        event.stopPropagation();
+        const t = tweets.find(function(item) { return item.id === id; });
+        if(!t) return;
+        if (type === 'like') { t.interacted.liked = !t.interacted.liked; t.stats.likes += t.interacted.liked ? 1 : -1; } 
+        else if (type === 'retweet') { t.interacted.retweeted = !t.interacted.retweeted; t.stats.retweets += t.interacted.retweeted ? 1 : -1; }
+        saveTweets(tweets); renderXApp();
+    }
+
+        // ================= 评论显示逻辑 =================
+    function openTweetDetail(id) {
+        const t = tweets.find(function(item) { return item.id === id; });
+        if(!t) return;
+        const content = document.getElementById('winContent');
+        
+        // 初始显示加载按钮，无评论时不显示默认文字
+let commentsHtml = `
+    <div id="commentLoadingArea_${t.id}" style="padding: 20px; text-align: center;">
+        <button class="secondary-btn" style="width: auto; padding: 10px 20px; font-size: 14px;" 
+                onclick="loadCommentsWithAPI('${t.id}')">
+            <i class="fas fa-sync-alt"></i> 点击连接 API 获取评论
+        </button>
+    </div>
+    <div id="commentsContainer_${t.id}"></div>
+`;
+// 若已有API拉取的评论，直接渲染
+if (t.commentsList && t.commentsList.length > 0) {
+    const commentHtmlContent = t.commentsList.map(c => {
+        const randomNum = Math.floor(Math.random() * 9999);
+        const fakeHandle = '@' + (c.user.replace(/[^\w]/g, '_')) + randomNum; 
+        const randomTime = Math.floor(Math.random() * 23) + 1 + 'h';
+        const likes = Math.floor(Math.random() * 50);
+        const displayLikes = likes > 0 ? likes : '';
+        return `
+        <div class="comment-item">
+            <div class="comment-avatar" style="background-image:url('${c.avatar || `https://api.dicebear.com/7.x/notionists/svg?seed=${c.user}${randomNum}`}')"></div>
+            <div class="comment-body">
+                <div class="comment-header-row">
+                    <span class="comment-user-name">${c.user}</span>
+                    <span class="comment-user-handle">${fakeHandle}</span>
+                    <span class="comment-time-ago">· ${randomTime}</span>
+                </div>
+                <div class="comment-text">${c.text}</div>
+                <div class="comment-actions-bar">
+                    <div class="c-action-item"><i class="far fa-comment"></i></div>
+                    <div class="c-action-item"><i class="fas fa-retweet"></i></div>
+                    <div class="c-action-item like-btn"><i class="far fa-heart"></i> ${displayLikes}</div>
+                    <div class="c-action-item"><i class="far fa-chart-bar"></i></div>
+                </div>
+            </div>
+        </div>
+    `;
+    }).join('');
+    // 替换加载按钮为实际评论
+    commentsHtml = `<div id="commentsContainer_${t.id}">${commentHtmlContent}</div>`;
+}
+
+        content.innerHTML = `
+            <div id="tweetDetailView" style="display:flex; flex-direction:column; height:100%; width:100%; background: #fff;">
+                <div class="nav-header" style="padding-top:40px; border-bottom: 1px solid #eff3f4;">
+                    <i class="fas fa-arrow-left back-btn" onclick="renderXApp()"></i>
+                    <span style="font-weight: 700; font-size: 18px;">帖子</span>
+                </div>
+                
+                <div style="flex: 1; overflow-y: auto; width:100%;">
+                    <div style="padding: 15px; border-bottom: 1px solid #eff3f4;">
+                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 15px;">
+                            <div class="tweet-avatar" style="background-image:url('${t.avatar}');"></div>
+                            <div style="display:flex; flex-direction:column;">
+                                <div class="tweet-user" style="font-size:16px;">${t.user}</div>
+                                <div class="tweet-handle" style="margin-left:0;">${t.handle}</div>
+                            </div>
+                            <i class="fas fa-ellipsis-h" style="margin-left:auto; color:#999;"></i>
+                        </div>
+                        
+                        <div class="tweet-text" style="font-size: 20px; line-height: 1.4; margin-bottom:15px;">${t.text}</div>
+                        ${t.image ? `<div class="image-container" style="margin-bottom:15px;"><img src="${t.image}" class="tweet-image"></div>` : ''}
+                        
+                        <div style="color:#536471; font-size:15px; margin-bottom:15px; border-bottom:1px solid #eff3f4; padding-bottom:15px;">
+                            ${new Date().toLocaleTimeString()} · Twitter for iPhone
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; padding: 0 10px; color:#536471; font-size:20px;">
+                            <i class="far fa-comment"></i>
+                            <i class="fas fa-retweet"></i>
+                            <i class="far fa-heart"></i>
+                            <i class="far fa-bookmark"></i>
+                            <i class="fas fa-share-nodes"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="comment-section">
+                        ${commentsHtml} 
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function initPullToRefresh() {
+        const feed = document.getElementById('xMainFeed');
+        if(!feed) return;
+        const pullIndicator = document.getElementById('pullToRefresh');
+        let startY = 0; let isPulling = false;
+        feed.addEventListener('touchstart', function(e) { if (feed.scrollTop === 0) { startY = e.touches[0].pageY; isPulling = true; } });
+        feed.addEventListener('touchmove', function(e) {
+            if (!isPulling) return;
+            const diff = e.touches[0].pageY - startY;
+            if (diff > 0 && diff < 80) { pullIndicator.style.height = diff + 'px'; pullIndicator.style.opacity = diff / 80; }
+        });
+        feed.addEventListener('touchend', function() {
+            if (isPulling) {
+                if (parseInt(pullIndicator.style.height) > 40) {
+                    pullIndicator.style.height = '40px';
+                    refreshX().then(function() { pullIndicator.style.height = '0px'; showToast("已更新"); });
+                } else pullIndicator.style.height = '0px';
+                isPulling = false;
+            }
+        });
+    }
+
+    function toggleCompose(show) {
+        const overlay = document.getElementById('composeOverlay');
+        const userAvatar = config.get('xAvatar', 'https://api.dicebear.com/7.x/notionists/svg?seed=me&backgroundColor=ffffff');
+        const composeAvatar = document.getElementById('composeUserAvatar');
+        if(composeAvatar) composeAvatar.style.backgroundImage = `url('${userAvatar}')`;
+        if(overlay) overlay.style.display = show ? 'flex' : 'none';
+        if(show) { let input = document.getElementById('tweetInput'); if(input) input.focus(); }
+    }
+
+    async function postTweet() {
+        const input = document.getElementById('tweetInput');
+        if(!input) return;
+        const text = input.value.trim();
+        if(text === "") return;
+        const btn = document.getElementById('postBtn');
+        btn.disabled = true; btn.textContent = "发送中";
+        const newTweet = {
+            id: 'tw-u-' + Date.now(),
+            avatar: config.get('xAvatar', 'https://api.dicebear.com/7.x/notionists/svg?seed=me&backgroundColor=ffffff'),
+            user: config.get('xName', 'User'),
+            verified: false,
+            handle: config.get('xHandle', '@user_id'),
+            time: '刚刚',
+            text: text,
+            lang: 'zh',
+            commentsList: [],
+            stats: { comments: 0, retweets: 0, likes: 0, views: '10' },
+            interacted: { liked: false, retweeted: false }
+        };
+        saveTweets([newTweet, ...tweets]);
+        input.value = ""; btn.disabled = false; btn.textContent = "发布";
+        toggleCompose(false); renderXApp(); showToast(`发布成功！`);
+    }
+
+   function renderXProfilePage() {
+    toggleSidebar(false);
+    const content = document.getElementById('winContent');
+    const avatar = config.get('xAvatar', 'https://api.dicebear.com/7.x/notionists/svg?seed=me&backgroundColor=ffffff');
+    const banner = config.get('xBanner', 'https://picsum.photos/seed/twitterbanner/1200/400'); // 默认Banner图
+    const name = config.get('xName', 'User');
+    const handle = config.get('xHandle', '@user_id');
+    const bio = config.get('xBio', '记录生活中的每一刻 🐦'); // 新增简介配置
+    // 统计数据（从本地存储获取，无则默认）
+    const tweetCount = parseInt(config.get('xTweetCount', tweets.length.toString()));
+    const followingCount = parseInt(config.get('xFollowingCount', '9'));
+    const followerCount = parseInt(config.get('xFollowerCount', '0'));
+
+    content.innerHTML = `
+        <div class="x-profile-page">
+            <!-- 顶部Banner图 -->
+            <div class="profile-banner" style="background-image: ${banner === 'none' ? 'none' : `url('${banner}')`}; background-color: #cfd9de;">
+                <div class="profile-nav-back" onclick="renderXApp()"><i class="fas fa-arrow-left"></i></div>
+                <!-- 个人大头像 -->
+                <div class="profile-avatar-big" style="background-image: url('${avatar}');" onclick="document.getElementById('xAvatarInput').click()"></div>
+                <input type="file" id="xAvatarInput" accept="image/*" style="display:none" onchange="handleXAvatarUpload(this)">
+            </div>
+            <!-- 编辑资料按钮 -->
+            <div class="profile-edit-btn" onclick="quickEditProfile()">编辑资料</div>
+            <!-- 个人资料区 -->
+            <div class="profile-info">
+                <div class="profile-name-row">
+                    ${name}
+                    <i class="fas fa-check-circle profile-verified"></i> <!-- 认证徽章 -->
+                </div>
+                <div class="profile-handle-row">${handle}</div>
+                <div class="profile-bio">${bio}</div>
+                <!-- 数据统计栏 -->
+                <div class="profile-stats">
+                    <div class="profile-stat-item">
+                        <span class="profile-stat-value">${tweetCount}</span>
+                        <span class="profile-stat-label">推文</span>
+                    </div>
+                    <div class="profile-stat-item">
+                        <span class="profile-stat-value">${followingCount}</span>
+                        <span class="profile-stat-label">正在关注</span>
+                    </div>
+                    <div class="profile-stat-item">
+                        <span class="profile-stat-value">${formatNum(followerCount)}</span>
+                        <span class="profile-stat-label">关注者</span>
+                    </div>
+                </div>
+                <!-- 主页标签栏 -->
+                <div class="profile-tabs">
+                    <div class="profile-tab-item active" onclick="renderProfileTab('tweets')">推文</div>
+                    <div class="profile-tab-item" onclick="renderProfileTab('replies')">回复</div>
+                    <div class="profile-tab-item" onclick="renderProfileTab('media')">媒体</div>
+                    <div class="profile-tab-item" onclick="renderProfileTab('likes')">喜欢</div>
+                </div>
+                <!-- 推文列表 -->
+                <div class="profile-tweet-feed">
+                    ${generateTweetHtml(tweets.filter(t => t.user === name))} <!-- 只显示当前用户的推文 -->
+                </div>
+            </div>
+        </div>
+    `;
+} 
+    function renderBookmarkSettings() {
+        toggleSidebar(false);
+        const content = document.getElementById('winContent');
+        content.innerHTML = `
+            <div style="display:flex; flex-direction:column; height:100%; background:#fff; width:100%;">
+                <div class="nav-header" style="padding-top:40px;">
+                    <i class="fas fa-arrow-left back-btn" onclick="renderXApp()"></i>
+                    <span style="font-weight: bold; font-size: 18px;">个性化推荐</span>
+                </div>
+                <div class="settings-content">
+                    <label class="setting-label">内容偏好标签（用顿号隔开）</label>
+                    <textarea id="userPrefsInput" class="api-input" style="width:100%; height:120px;">${config.get('xUserPrefs', '二次元、科技、生活吐槽、梦女文学')}</textarea>
+                    <button class="primary-btn" style="width:100%; margin-top:20px;" onclick="saveBookmarkPrefs()">保存并刷新</button>
+                </div>
+            </div>
+        `;
+    }
+
+    async function saveBookmarkPrefs() {
+        config.set('xUserPrefs', document.getElementById('userPrefsInput').value);
+        showToast("正在根据新偏好更新内容...");
+        const newTweets = await generateTweetsFromAPI(5);
+        renderXApp();
+    }
+
+    function quickEditProfile() {
+        const n = prompt("新昵称:", config.get('xName', 'User')); if (n) config.set('xName', n);
+        const h = prompt("新ID:", config.get('xHandle', '@user_id')); if (h) config.set('xHandle', h);
+        applyXProfile(); renderXProfilePage();
+    }
+    // 主页标签切换逻辑（推文/回复/媒体/喜欢）
+function renderProfileTab(tabType) {
+    const tabItems = document.querySelectorAll('.profile-tab-item');
+    const tweetFeed = document.querySelector('.profile-tweet-feed');
+    const name = config.get('xName', 'User');
+    
+    // 更新标签激活状态
+    tabItems.forEach(item => {
+        item.classList.remove('active');
+        if (item.textContent === tabType) item.classList.add('active');
+    });
+    
+    // 根据标签筛选推文
+    let filteredTweets = [];
+    switch(tabType) {
+        case 'tweets':
+            filteredTweets = tweets.filter(t => t.user === name); // 只显示自己的推文
+            break;
+        case 'replies':
+            filteredTweets = tweets.filter(t => t.text.includes('@') && t.user === name); // 包含@的回复
+            break;
+        case 'media':
+            filteredTweets = tweets.filter(t => t.image && t.user === name); // 带图片的推文
+            break;
+        case 'likes':
+            filteredTweets = tweets.filter(t => t.interacted.liked && t.user === name); // 自己点赞的推文
+            break;
+    }
+    
+    // 渲染筛选后的推文
+    tweetFeed.innerHTML = filteredTweets.length > 0 
+        ? generateTweetHtml(filteredTweets) 
+        : `<div style="padding:40px; text-align:center; color:#999;">暂无${tabType}内容</div>`;
+}
+
+    function applyXProfile() {
+        const name = config.get('xName', 'User');
+        const avatar = config.get('xAvatar', 'https://api.dicebear.com/7.x/notionists/svg?seed=me&backgroundColor=ffffff');
+        if(document.getElementById('xSideName')) document.getElementById('xSideName').innerHTML = `${name} <i class="fas fa-lock"></i>`;
+        if(document.getElementById('xSideAvatar')) document.getElementById('xSideAvatar').style.backgroundImage = `url('${avatar}')`;
+    }
+
+    function applyChatProfile() {
+        // 只用于初始化，无实际DOM操作需求
+    }
+
+    function handleXAvatarUpload(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) { 
+                config.set('xAvatar', e.target.result); 
+                applyXProfile(); 
+                renderXProfilePage(); 
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    // ================= 系统设置各模块 =================
+    function renderSettingsMain() {
+        const content = document.getElementById('winContent');
+        document.getElementById('winTitle').textContent = "设置";
+        document.getElementById('winBackBtn').onclick = closeApp;
+        content.innerHTML = `
+            <div class="settings-content">
+                <div class="menu-item" onclick="renderWallpaperSettings()"><span>壁纸设置</span><i class="fas fa-chevron-right"></i></div>
+                <div class="menu-item" onclick="renderXProfileSettings()"><span>X 资料设置</span><i class="fas fa-chevron-right"></i></div>
+                <div class="menu-item" onclick="renderAPISettings()"><span>API 连接设置</span><i class="fas fa-chevron-right"></i></div>
+                <div class="menu-item" onclick="renderMinimaxSettings()"><span>Minimax 语音设置</span><i class="fas fa-chevron-right"></i></div>
+                <div class="menu-item" onclick="userFollowers=0; config.set('xFollowers', 0); localStorage.removeItem('saved_tweets'); tweets=[]; showToast('数据已清空');"><span>清空粉丝与发帖数据</span><i class="fas fa-trash"></i></div>
+            </div>
+        `;
+    }
+
+    function renderWallpaperSettings() {
+        document.getElementById('winTitle').textContent = "壁纸设置";
+        document.getElementById('winBackBtn').onclick = renderSettingsMain;
+        document.getElementById('winContent').innerHTML = `
+            <div class="settings-content">
+                <div class="setting-card">
+                    <label class="setting-label">桌面壁纸</label>
+                    <button class="primary-btn" onclick="document.getElementById('wallpaperInput').click()">从相册选择</button>
+                    <input type="file" id="wallpaperInput" accept="image/*" style="display:none" onchange="handleWallpaperUpload(this)">
+                    <button class="secondary-btn" style="margin-top:10px; width:100%;" onclick="resetWallpaper()">恢复默认</button>
+                </div>
+            </div>`;
+    }
+
+    function renderXProfileSettings() {
+        document.getElementById('winTitle').textContent = "X 资料";
+        document.getElementById('winBackBtn').onclick = renderSettingsMain;
+        document.getElementById('winContent').innerHTML = `
+            <div class="settings-content">
+                <div class="setting-card">
+                    <div class="setting-item"><label class="setting-label">昵称</label><input type="text" id="xNameInput" class="api-input" value="${config.get('xName', 'User')}"></div>
+                    <div class="setting-item"><label class="setting-label">用户名</label><input type="text" id="xHandleInput" class="api-input" value="${config.get('xHandle', '@user_id')}"></div>
+                    <button class="primary-btn" style="width:100%" onclick="saveXProfile()">保存</button>
+                </div>
+            </div>`;
+    }
+
+    function renderAPISettings() {
+        document.getElementById('winTitle').textContent = "API 配置";
+        document.getElementById('winBackBtn').onclick = renderSettingsMain;
+        document.getElementById('winContent').innerHTML = `
+            <div class="settings-content">
+                <div class="setting-card">
+                    <div class="setting-item"><label class="setting-label">API KEY</label><input type="password" id="apiKey" class="api-input" value="${config.get('apiKey', '')}"></div>
+                    <div class="setting-item"><label class="setting-label">ENDPOINT</label><input type="text" id="apiEndpoint" class="api-input" value="${config.get('apiEndpoint', '')}"></div>
+                    <div class="setting-item">
+                        <label class="setting-label">MODEL</label>
+                        <div class="api-input-group">
+                            <input type="text" id="apiModel" class="api-input" value="${config.get('apiModel', 'gpt-3.5-turbo')}">
+                            <button class="icon-btn-small" onclick="refreshModelList()"><i class="fas fa-sync-alt"></i></button>
+                        </div>
+                    </div>
+                    <div class="setting-item"><label class="setting-label">TEMPERATURE</label><input type="range" min="0" max="2" step="0.1" id="apiTemp" value="${config.get('apiTemp', '0.7')}"></div>
+                    <div class="btn-group"><button class="primary-btn" onclick="saveAPISettings('api')">保存</button><button class="secondary-btn" onclick="testAPIConnection()">测试</button></div>
+                </div>
+            </div>`;
+    }
+
+    function renderMinimaxSettings() {
+        document.getElementById('winTitle').textContent = "Minimax 语音";
+        document.getElementById('winBackBtn').onclick = renderSettingsMain;
+        document.getElementById('winContent').innerHTML = `
+            <div class="settings-content">
+                <div class="setting-card">
+                    <div class="setting-item"><label class="setting-label">API KEY</label><input type="password" id="miniKey" class="api-input" value="${config.get('miniKey', '')}"></div>
+                    <div class="setting-item"><label class="setting-label">音色 ID</label><input type="text" id="miniVoice" class="api-input" value="${config.get('miniVoice', 'male-qn-qingse')}"></div>
+                    <button class="primary-btn" style="width:100%" onclick="saveAPISettings('mini')">保存配置</button>
+                </div>
+            </div>`;
+    }
+
+    function renderWorldBookSettings() {
+        document.getElementById('winTitle').textContent = "世界书管理";
+        document.getElementById('winBackBtn').onclick = closeApp;
+        const savedWorldBook = JSON.parse(localStorage.getItem('world_book') || "[]");
+        document.getElementById('winContent').innerHTML = `
+            <div class="settings-content">
+                <button class="primary-btn" onclick="openWbEditor()" style="margin-bottom: 20px;"><i class="fas fa-plus"></i> 添加条目</button>
+                <div id="worldBookList">
+                    ${savedWorldBook.length === 0 ? '<div style="text-align:center; color:#999; padding:40px;">暂无条目</div>' : 
+                        savedWorldBook.map((entry, index) => `
+                            <div class="menu-item" style="flex-direction:column; align-items:flex-start;">
+                                <div style="display:flex; justify-content:space-between; width:100%; margin-bottom:10px;">
+                                    <span style="font-weight:bold;">${entry.key}</span>
+                                    <div>
+                                        <i class="fas fa-edit" onclick="openWbEditor(${index})" style="margin-right:15px; color:#1d9bf0;"></i>
+                                        <i class="fas fa-trash" onclick="deleteWorldBookEntry(${index})" style="color:#ff3b30;"></i>
+                                    </div>
+                                </div>
+                                <div style="color:#666; font-size:14px; line-height:1.4;">${entry.content.substring(0, 50)}...</div>
+                            </div>
+                        `).join('')}
+                </div>
+            </div>`;
+    }
+
+    function openWbEditor(index = -1) {
+        editingWbIndex = index;
+        const overlay = document.getElementById('wbEditorOverlay');
+        const keyInput = document.getElementById('wbKeyInput');
+        const contentInput = document.getElementById('wbContentInput');
+        const title = document.getElementById('wbEditorTitle');
+        if (index === -1) { title.textContent = "添加世界书"; keyInput.value = ""; contentInput.value = ""; } 
+        else {
+            title.textContent = "编辑世界书";
+            const saved = JSON.parse(localStorage.getItem('world_book') || "[]");
+            keyInput.value = saved[index].key;
+            contentInput.value = saved[index].content;
+        }
+        overlay.style.display = 'flex';
+    }
+
+    function closeWbEditor() { document.getElementById('wbEditorOverlay').style.display = 'none'; editingWbIndex = -1; }
+
+    function saveWbEntry() {
+        const key = document.getElementById('wbKeyInput').value.trim();
+        const content = document.getElementById('wbContentInput').value.trim();
+        if (!key || !content) { showToast("请填写完整信息"); return; }
+        const saved = JSON.parse(localStorage.getItem('world_book') || "[]");
+        if (editingWbIndex === -1) { saved.push({ key: key, content: content }); showToast("添加成功"); } 
+        else { saved[editingWbIndex] = { key: key, content: content }; showToast("修改成功"); }
+        localStorage.setItem('world_book', JSON.stringify(saved));
+        closeWbEditor(); renderWorldBookSettings();
+    }
+
+    function deleteWorldBookEntry(index) {
+        if (!confirm("确定删除该条目吗？")) return;
+        const saved = JSON.parse(localStorage.getItem('world_book') || "[]");
+        saved.splice(index, 1);
+        localStorage.setItem('world_book', JSON.stringify(saved));
+        renderWorldBookSettings();
+        showToast("已删除");
+    }
+
+    function saveAPISettings(type) {
+        if(type === 'api') {
+            config.set('apiKey', document.getElementById('apiKey').value);
+            config.set('apiEndpoint', document.getElementById('apiEndpoint').value);
+            config.set('apiModel', document.getElementById('apiModel').value);
+            config.set('apiTemp', document.getElementById('apiTemp').value);
+        } else {
+            config.set('miniKey', document.getElementById('miniKey').value);
+            config.set('miniVoice', document.getElementById('miniVoice').value);
+        }
+        showToast('已保存');
+    }
+
+    function saveXProfile() {
+        config.set('xName', document.getElementById('xNameInput').value);
+        config.set('xHandle', document.getElementById('xHandleInput').value);
+        applyXProfile(); showToast('已保存');
+    }
+
+    function handleWallpaperUpload(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) { config.set('customWallpaper', e.target.result); applySavedWallpaper(); };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function resetWallpaper() { localStorage.removeItem('customWallpaper'); applySavedWallpaper(); }
+
+    function applySavedWallpaper() {
+        const wall = config.get('customWallpaper', 'none');
+        const container = document.getElementById('mainContainer');
+        if (wall !== 'none') container.style.backgroundImage = `url(${wall})`;
+        else { container.style.backgroundImage = 'none'; container.style.backgroundColor = '#fff'; }
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        if(t) {
+            t.textContent = msg; t.classList.add('active');
+            setTimeout(function() { t.classList.remove('active'); }, 2000);
+        }
+    }
+</script>
+</body>
+</html>
